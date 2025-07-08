@@ -2,3 +2,5 @@
 res/models/*.pkl
 *.vscode
 *__pycache__
+res/*/*pkl
+res/data_scut

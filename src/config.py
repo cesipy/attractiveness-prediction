@@ -12,7 +12,7 @@ MODEL_PATH = f"res/models/model{int(time())}.pth"
 
 # for the preprocessed pickle when all the images are opened
 # see src/datasets.py
-PREFIX_DATASET = "res/preprocessed_data"
+PREFIX_DATASET = "res/preprocessed_data/preprocessed_data"
 
 # path of the scut images
 SCUT_IMAGE_PATH = "res/data_scut/Images"

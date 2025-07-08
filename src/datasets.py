@@ -57,8 +57,10 @@ class CustomDataset(Dataset):
             processed_img = process_single_image(img_path)
             processed_data.append((processed_img, img_rating))
             
-            if counter % 30 == 0:
+            if counter % 300 == 0:
                 print(f"processed {counter} images")
+                
+        return processed_data
 
             
     def __len__(self):
