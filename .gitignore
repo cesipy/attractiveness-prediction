@@ -1,1 +1,4 @@
 *.DS_Store
+res/models/*.pkl
+*.vscode
+*__pycache__

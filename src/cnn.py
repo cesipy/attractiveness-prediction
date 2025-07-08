@@ -48,7 +48,10 @@ class CNN(torch.nn.Module):
         self.load_state_dict(torch.load(path))
 
     
-def train_epoch(model: CNN, data: DataLoader):
+def train_epoch(model: CNN, data: DataLoader, loss_fn):
+    
+    total_loss = 0
+    num_samples = 0
     
     for batch in data: 
         x, y_true = batch
@@ -56,15 +59,25 @@ def train_epoch(model: CNN, data: DataLoader):
         y_pred = model(x)
         # TODO: how to incorporate it here?
         
+        loss = ...
+        total_loss  += loss.item
+        num_samples += 1
         
-        
-        
+    return total_loss / num_samples 
+    
         
         
 def train(model: CNN, train_data: DataLoader, test_data: DataLoader):
     optim = torch.optim.Adam(model.parameters(), lr=0.001)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    for i in range(EPOCHS)
+    for i in range(EPOCHS):
+        model.train()
+        train_epoch(model, train_data)
+        
+        model.eval()
+        with torch.no_grad():
+            # Evaluate on test data
+            pass
     
     
