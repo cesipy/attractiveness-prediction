@@ -16,10 +16,10 @@ from config import *
 def process_single_image(path: str) -> Tensor: 
     img = cv.imread(path)
     img = cv.resize(img, (224, 224))
-    img = img / 255.0  
+    img = img.astype(np.float32) / 255.0
     
     img = np.transpose(img, (2, 0, 1))  # change to CxHxW format (the opencv format)
-    img_tensor = torch.from_numpy(img)
+    img_tensor = torch.from_numpy(img.astype(np.float32))
     
     return img_tensor
 
@@ -55,7 +55,8 @@ class CustomDataset(Dataset):
             counter += 1
             img_path, img_rating = dp
             processed_img = process_single_image(img_path)
-            processed_data.append((processed_img, img_rating))
+            rating_tensor = torch.tensor(img_rating, dtype=torch.float32)
+            processed_data.append((processed_img, rating_tensor))
             
             if counter % 300 == 0:
                 print(f"processed {counter} images")
@@ -64,7 +65,7 @@ class CustomDataset(Dataset):
 
             
     def __len__(self):
-        return len(self.data())
+        return self.data.__len__()
     
     def __getitem__(self, idx):
         img, rating = self.data[idx]

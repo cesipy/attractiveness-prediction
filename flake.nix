@@ -19,6 +19,7 @@
           python313Packages.opencv4
           python313Packages.torchvision
           python313Packages.torch
+          python313Packages.fastapi
           # python313Packages.numpy
           # python313Packages.scikit-learn
           # python313Packages.matplotlib
