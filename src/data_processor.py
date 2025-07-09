@@ -10,7 +10,7 @@ from config import *
 
 ratings_name = "All_Ratings.xlsx"
 
-def get_items(data_dir: str): 
+def get_items(data_dir: str, filter:str=""): 
     
     ratings =  pd.read_excel(os.path.join(data_dir, ratings_name))
     columns =  ratings.columns
@@ -18,8 +18,11 @@ def get_items(data_dir: str):
     data:Optional[Tuple[str, int]]= []
     for i in range(len(ratings)):
         item = ratings.iloc[i]
-        full_path = os.path.join(SCUT_IMAGE_PATH, item.get("Filename"))
-        data.append((full_path, item.get("Rating")))
+        filename = item.get("Filename")
+        
+        if filter in filename:
+            full_path = os.path.join(SCUT_IMAGE_PATH, item.get("Filename"))
+            data.append((full_path, item.get("Rating")))
     
     return data
 
@@ -47,7 +50,9 @@ def get_averages(data: Tuple[str, int]) -> Tuple[float, float]:
     
     
 if __name__ == "__main__":
-    data = get_items("res/data_scut")
+    filter = "F"        # only female -F
+                        # only male   -M
+    data = get_items("res/data_scut", filter=filter)
     
     avg_data = get_averages(data=data)
     datasets.CustomDataset(avg_data, suffix="train")
