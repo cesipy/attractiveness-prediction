@@ -4,3 +4,4 @@ res/models/*.pkl
 *__pycache__
 res/*/*pkl
 res/data_scut
+res/test
