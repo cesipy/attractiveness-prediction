@@ -12,6 +12,7 @@
     {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
+          direnv
           python313
           python313Packages.pip
           python313Packages.pandas

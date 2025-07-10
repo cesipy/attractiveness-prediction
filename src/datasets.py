@@ -5,6 +5,7 @@ from typing import Tuple, Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import v2 as transforms
 from torch.types import Tensor
 
 import numpy as np
@@ -15,7 +16,7 @@ from config import *
 
 def process_single_image(path: str) -> Tensor: 
     img = cv.imread(path)
-    img = cv.resize(img, (224, 224))
+    img = cv.resize(img, IMAGE_SIZE)
     img = img.astype(np.float32) / 255.0
     
     img = np.transpose(img, (2, 0, 1))  # change to CxHxW format (the opencv format)
@@ -26,10 +27,31 @@ def process_single_image(path: str) -> Tensor:
 
 
 class CustomDataset(Dataset): 
-    def __init__(self, data: Tuple[str, np.int64], suffix: str): 
+    def __init__(
+        self, 
+        data: Tuple[str, np.int64], 
+        suffix: str, 
+        data_augment: bool= False
+        ): 
         dataset_path = f"{PREFIX_DATASET}_{suffix}.pkl"
         
         print(f"total data_size: {len(data)}")
+
+        self.transform = None
+
+        if data_augment: 
+            self.transform = transforms.Compose([
+                transforms.RandomHorizontalFlip(p=0.2),
+                transforms.RandomVerticalFlip(p=0.3),           
+                transforms.RandomRotation(degrees=15),
+                transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+                # transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
+                
+                # transforms.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0)),
+                # transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),
+                # transforms.RandomZoomOut(scale=(0.8, 1.2)),
+                # transforms.RandomRotation(degrees=45),  # Very aggressive - try only if needed
+            ])
         
         if os.path.exists(dataset_path):
             with open(dataset_path, 'rb') as f:
@@ -69,6 +91,10 @@ class CustomDataset(Dataset):
     
     def __getitem__(self, idx):
         img, rating = self.data[idx]
+
+        if self.transform: 
+            img = self.transform(img)
+
         return img, rating
             
         
