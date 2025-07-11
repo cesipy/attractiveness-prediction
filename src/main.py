@@ -1,5 +1,6 @@
 import random
 import os
+from typing import Optional
 
 from torch.utils.data import DataLoader, Dataset
 import torch
@@ -14,17 +15,9 @@ from datasets import CustomDataset, process_single_image, process_single_image_f
 
 from config import *
 
-mtcnn = MTCNN(
-    image_size=None, 
-    margin=40,
-    min_face_size=20,
-    thresholds=[0.6, 0.7, 0.7],
-    factor=0.709,
-    post_process=False,
-    device='cuda' if torch.cuda.is_available() else 'cpu'
-)
 
-def evaluate_single_photo_cropped(model: CNN, img_path): 
+
+def evaluate_single_photo_cropped(model: CNN, img_path, mtcnn: MTCNN): 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     img_tensor = process_single_image_face_crop(img_path, mtcnn)
@@ -52,13 +45,21 @@ def evaluate_single_photo(model: CNN, img_path: str):
         y_pred = y_pred.squeeze().item() 
     return y_pred
 
-def test_on_photo(model: CNN, path: str): 
-    result = evaluate_single_photo_cropped(
-        model=model, 
-        img_path=path
-    )
+def test_on_photo(model: CNN, path: str, cropping:bool=CROPPED, mtcnn: Optional[MTCNN]=None): 
+    if CROPPED:
+        result = evaluate_single_photo_cropped(
+            model=model, 
+            img_path=path, 
+            mtcnn=mtcnn
+        )
+    
+    else:
+        result = evaluate_single_photo(
+            model=model, 
+            img_path=path
+        )
     if result:
-        result *=2
+        result *=2  # to get n/10 instead of n/5
         print(f"Predicted score for the image {path} {result:.3f}/10")
 
     else: 
@@ -75,42 +76,60 @@ def test_on_dir(model: CNN, dir_name):
     #         new_path = os.path.join(dir_name, new_name)
     #         os.rename(old_path, new_path)
 
+    
     for file_name in os.listdir(dir_name):
         if file_name.endswith(".jpg") or file_name.endswith(".png") or file_name.endswith(".jpeg"):
             img_path = os.path.join(dir_name, file_name)
-            test_on_photo(model=model, path=img_path)
+            if CROPPED: 
+                mtcnn = MTCNN(
+                    image_size=None, 
+                    margin=40,
+                    min_face_size=20,
+                    thresholds=[0.6, 0.7, 0.7],
+                    factor=0.709,
+                    post_process=False,
+                    device='cuda' if torch.cuda.is_available() else 'cpu'
+                )
+                test_on_photo(
+                    model=model,
+                    path=img_path,
+                    cropping=CROPPED,
+                    mtcnn=mtcnn
+                )
+            else: 
+                test_on_photo(model=model, path=img_path)
 
     
 
 
 def main(): 
-    # data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
-    # avg_data = data_processor.get_averages(data=data)
+    data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
+    avg_data = data_processor.get_averages(data=data)
     
-    # random.shuffle(avg_data)
-    # train_test_index = int(len(avg_data) * TRAIN_RATIO)
-    # train_data  = avg_data[:train_test_index]
-    # test_data = avg_data[train_test_index:]
+    random.shuffle(avg_data)
+    train_test_index = int(len(avg_data) * TRAIN_RATIO)
+    train_data  = avg_data[:train_test_index]
+    test_data = avg_data[train_test_index:]
     
-    # train_dataset = CustomDataset(train_data, suffix="train", data_augment=USE_DATA_AUGMENTATION)
-    # test_dataset = CustomDataset(test_data, suffix="test")
-    # trainloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    # testloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    train_dataset = CustomDataset(train_data, suffix="train", data_augment=USE_DATA_AUGMENTATION)
+    test_dataset = CustomDataset(test_data, suffix="test")
+    trainloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    testloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
     
-    # print(f"Dataset size: {len(train_dataset)}")
-    # model = CNN(model_type=MODEL_TYPE)
-    
-    # train_losses, test_losses = cnn.train(
-    #     model=model, 
-    #     train_data=trainloader, 
-    #     test_data=testloader
-    # )
-    #data_processor.plot_training_curves(train_losses=train_losses, eval_losses=test_losses)
-
-    # model.save(MODEL_PATH)
-
+    print(f"Dataset size: {len(train_dataset)}")
     model = CNN(model_type=MODEL_TYPE)
-    model.load("res/models/model1752132249.pth")
+    
+    train_losses, test_losses = cnn.train(
+        model=model, 
+        train_data=trainloader, 
+        test_data=testloader
+    )
+    data_processor.plot_training_curves(train_losses=train_losses, eval_losses=test_losses)
+
+    model.save(MODEL_PATH)
+
+    #model = CNN(model_type=MODEL_TYPE)
+
 
     test_on_dir(model=model, dir_name="res/test/")
 

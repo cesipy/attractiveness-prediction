@@ -4,7 +4,7 @@ FC_DIM_SIZE = 1024
 DROPOUT_PROB = 0.5
 OUTFEATURES = 1
 LR = 4e-5
-EPOCHS = 30
+EPOCHS = 10
 BATCH_SIZE = 32
 
 
@@ -32,3 +32,5 @@ MODEL_TYPE = "resnet18"
 # none   - ""
 DATASET_FILTER = ""       
 USE_DATA_AUGMENTATION = True 
+
+CROPPED = True      # crop the image using facent/mntt
