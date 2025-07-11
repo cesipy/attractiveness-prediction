@@ -6,13 +6,19 @@ from typing import Tuple, Optional
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2 as transforms
-from torch.types import Tensor
+from torch import Tensor
+import matplotlib.pyplot as plt
+
+import torchvision.transforms.functional as tf
 
 import numpy as np
 import cv2 as cv
 from cv2.typing import MatLike
 
+from PIL import Image
 from config import *
+
+# mtcnn = 
 
 def process_single_image(path: str) -> Tensor: 
     img = cv.imread(path)
@@ -24,6 +30,48 @@ def process_single_image(path: str) -> Tensor:
     
     return img_tensor
 
+def process_single_image_face_crop(path: str, model) -> Tensor:
+    """
+    Use MTCNN for detection but match training preprocessing exactly
+    """
+    # Load image the same way as training (OpenCV = BGR)
+    img_cv = cv.imread(path)
+    img_pil = Image.open(path).convert('RGB')
+    
+    # Use MTCNN just for face detection (get bounding boxes)
+    boxes, probs = model.detect(img_pil)
+    
+    if boxes is None:
+        return None
+    
+    # Get the best face (highest confidence)
+    best_box_idx = np.argmax(probs)
+    box = boxes[best_box_idx]
+    
+    # Add margin (similar to MTCNN's margin)
+    margin = 40
+    x1, y1, x2, y2 = box
+    
+    # Add margin
+    x1 = max(0, int(x1 - margin))
+    y1 = max(0, int(y1 - margin))
+    x2 = min(img_cv.shape[1], int(x2 + margin))
+    y2 = min(img_cv.shape[0], int(y2 + margin))
+    
+    # Crop face using OpenCV (same as training)
+    face_crop = img_cv[y1:y2, x1:x2]
+    
+    # Apply EXACT same preprocessing as training
+    face_crop = cv.resize(face_crop, IMAGE_SIZE)  # Use your IMAGE_SIZE
+    face_crop = face_crop.astype(np.float32) / 255.0
+    face_crop = np.transpose(face_crop, (2, 0, 1))
+    face_tensor = torch.from_numpy(face_crop.astype(np.float32))
+    
+    # Save for visualization (convert BGR to RGB for saving)
+    face_crop_rgb = cv.cvtColor((face_crop.transpose(1, 2, 0) * 255).astype(np.uint8), cv.COLOR_BGR2RGB)
+    Image.fromarray(face_crop_rgb).save(f"{path}_cropped_face.jpg")
+    
+    return face_tensor
 
 
 class CustomDataset(Dataset): 
