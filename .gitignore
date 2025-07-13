@@ -6,3 +6,4 @@ res/models/*.pth
 res/*/*pkl
 res/data_scut
 res/test
+logs/*.txt
