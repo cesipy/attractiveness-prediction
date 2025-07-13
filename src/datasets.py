@@ -31,6 +31,23 @@ def process_single_image(path: str) -> Tensor:
     return img_tensor
 
 def process_single_image_face_crop(path: str, model) -> Tensor:
+    face_crop = get_cropped_image(path=path, model=model)
+    if face_crop is None:
+        return None
+
+    # same preprocessing as in training
+    face_crop = cv.resize(face_crop, IMAGE_SIZE)  # Use your IMAGE_SIZE
+    face_crop = face_crop.astype(np.float32) / 255.0
+    face_crop = np.transpose(face_crop, (2, 0, 1))
+    face_tensor = torch.from_numpy(face_crop.astype(np.float32))
+    
+    # only checking/debugging
+    face_crop_rgb = cv.cvtColor((face_crop.transpose(1, 2, 0) * 255).astype(np.uint8), cv.COLOR_BGR2RGB)
+    Image.fromarray(face_crop_rgb).save(f"{path}_cropped_face.jpg")
+    
+    return face_tensor
+
+def get_cropped_image(path: str, model) -> MatLike: 
     img_cv = cv.imread(path)
     img_pil = Image.open(path).convert('RGB')
     
@@ -52,18 +69,7 @@ def process_single_image_face_crop(path: str, model) -> Tensor:
     y2 = min(img_cv.shape[0], int(y2 + margin))
 
     face_crop = img_cv[y1:y2, x1:x2]
-
-    # same preprocessing as in training
-    face_crop = cv.resize(face_crop, IMAGE_SIZE)  # Use your IMAGE_SIZE
-    face_crop = face_crop.astype(np.float32) / 255.0
-    face_crop = np.transpose(face_crop, (2, 0, 1))
-    face_tensor = torch.from_numpy(face_crop.astype(np.float32))
-    
-    # only checking/debugging
-    face_crop_rgb = cv.cvtColor((face_crop.transpose(1, 2, 0) * 255).astype(np.uint8), cv.COLOR_BGR2RGB)
-    Image.fromarray(face_crop_rgb).save(f"{path}_cropped_face.jpg")
-    
-    return face_tensor
+    return face_crop
 
 
 class CustomDataset(Dataset): 
