@@ -8,7 +8,7 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 
 from config import *
-
+import data_processor
 
 class CNN(torch.nn.Module): 
     def __init__(self, model_type: str,): 
@@ -24,6 +24,9 @@ class CNN(torch.nn.Module):
         
         for param in model.parameters(): 
             param.requires_grad = False
+
+        for param in model.layer4.parameters(): 
+            param.requires_grad = True
             
         fc = [
             nn.Linear(in_features=model.fc.in_features, out_features=FC_DIM_SIZE),
@@ -36,7 +39,6 @@ class CNN(torch.nn.Module):
         ]
         
         model.fc = nn.Sequential(*fc)
-        
         self.model = model
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -51,7 +53,7 @@ class CNN(torch.nn.Module):
     
 def train_epoch(model: CNN, data: DataLoader, loss_fn, device, optim):
     total_loss = 0
-    num_samples = 0
+    num_batches = 0
     
     for batch in data: 
         optim.zero_grad()
@@ -68,8 +70,8 @@ def train_epoch(model: CNN, data: DataLoader, loss_fn, device, optim):
         optim.step()
         
         total_loss  += loss.item()
-        num_samples += 1
-    return total_loss / num_samples 
+        num_batches += 1
+    return total_loss / num_batches
 
 
 def evaluate(model: CNN, dataloader: DataLoader, loss_fn, device) -> float:
@@ -98,9 +100,13 @@ def evaluate(model: CNN, dataloader: DataLoader, loss_fn, device) -> float:
         
 def train(model: CNN, train_data: DataLoader, test_data: DataLoader):
     optim = torch.optim.Adam(model.parameters(), lr=LR)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    loss_fn = nn.MSELoss()
-    
+    device = "cuda" if torch.cuda.is_available() else "cpu" 
+    # loss_fn = nn.MSELoss()
+    loss_fn = nn.SmoothL1Loss()
+
+    losses = []
+    test_losses   = []
+
     model = model.to(device)
     
     for i in range(EPOCHS):
@@ -122,3 +128,8 @@ def train(model: CNN, train_data: DataLoader, test_data: DataLoader):
                 device=device
             )
         print(f"Epoch {i+1}/{EPOCHS}, Loss: {current_loss:.4f}, Eval Loss: {eval_loss:.4f}")
+
+        losses.append(current_loss)
+        test_losses.append(eval_loss)
+
+    return losses, test_losses

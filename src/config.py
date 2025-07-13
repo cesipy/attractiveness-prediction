@@ -1,11 +1,11 @@
 from time import time
 
-FC_DIM_SIZE = 256
-DROPOUT_PROB = 0.3
+FC_DIM_SIZE = 1024
+DROPOUT_PROB = 0.5
 OUTFEATURES = 1
-LR = 1e-4
-EPOCHS = 10
-BATCH_SIZE = 128
+LR = 4e-5
+EPOCHS = 30
+BATCH_SIZE = 32
 
 
 # where to save the trained model. 
@@ -21,5 +21,14 @@ SCUT_IMAGE_PATH = "res/data_scut/Images"
 # what amount of data set to use for training
 TRAIN_RATIO = 0.8
 
+IMAGE_SIZE = (224,224)
 
 MODEL_TYPE = "resnet18"
+
+
+# for the dataset
+# female - "F"
+# male   - "M"
+# none   - ""
+DATASET_FILTER = ""       
+USE_DATA_AUGMENTATION = True 

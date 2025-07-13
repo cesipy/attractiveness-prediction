@@ -1,6 +1,8 @@
 *.DS_Store
 res/models/*.pkl
+res/models/*.pth
 *.vscode
 *__pycache__
 res/*/*pkl
 res/data_scut
+res/test
