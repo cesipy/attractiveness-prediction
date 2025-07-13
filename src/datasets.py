@@ -3,6 +3,7 @@ import os
 
 from typing import Tuple, Optional
 
+import clip
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2 as transforms
@@ -71,19 +72,37 @@ def get_cropped_image(path: str, model) -> MatLike:
     face_crop = img_cv[y1:y2, x1:x2]
     return face_crop
 
+# def process_single_image_PIL(path: str):
+#     img = Image.open(path).convert('RGB')
+#     img = img.resize(IMAGE_SIZE)
+#     img = np.array(img, dtype=np.float32) / 255.0
+    
+#     img = np.transpose(img, (2, 0, 1))  # change to CxHxW format
+#     img_tensor = torch.from_numpy(img.astype(np.float32))
+    
+#     return img_tensor
+
 
 class CustomDataset(Dataset): 
     def __init__(
         self, 
         data: Tuple[str, np.int64], 
         suffix: str, 
-        data_augment: bool= False
+        data_augment: bool= False, 
+        clip_preprocess:bool=False          # preprocess for clip. 
         ): 
         dataset_path = f"{PREFIX_DATASET}_{suffix}.pkl"
         
         print(f"total data_size: {len(data)}")
 
         self.transform = None
+        
+        self.clip_preprocess = clip_preprocess
+        if clip_preprocess: 
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.device = device
+            self.preprocess = clip.load(CLIP_MODEL, device=device)[1]  # TODO: make model variable in config
+            self.model = clip.load(CLIP_MODEL, device=device)[0]  # TODO: make model variable in config
 
         if data_augment: 
             self.transform = transforms.Compose([
@@ -106,14 +125,14 @@ class CustomDataset(Dataset):
             print("found preprocessed data, finished loading it!")
         else: 
             print("preprocessed data not found, preprocessing...")
-            data = self.__process_dataset(data=data)
+            data = self.__process_dataset(data=data, clip_preprocess=clip_preprocess)
             
             with open(dataset_path, 'wb') as f:
                 pickle.dump(data, f)
             self.data = data
             
             
-    def __process_dataset(self, data: Tuple[str, np.int64]): 
+    def __process_dataset(self, data: Tuple[str, np.int64], clip_preprocess:bool=False): 
         """preprocesses the dataset, and saves it as pickle"""
         
         processed_data = []
@@ -122,9 +141,20 @@ class CustomDataset(Dataset):
         for dp in data: 
             counter += 1
             img_path, img_rating = dp
-            processed_img = process_single_image(img_path)
+            
             rating_tensor = torch.tensor(img_rating, dtype=torch.float32)
-            processed_data.append((processed_img, rating_tensor))
+            
+            if clip_preprocess:
+                img = Image.open(img_path).convert('RGB')
+                # processed_img = self.preprocess(img).unsqueeze(0).to(self.device)
+                processed_img = self.preprocess(img).to(self.device)
+                with torch.no_grad(): 
+                    # features = self.model.encode_image(processed_img).cpu().squeeze()
+                    # processed_data.append((features, rating_tensor))
+                    processed_data.append((processed_img, rating_tensor))
+            else: 
+                processed_img = process_single_image(img_path)
+                processed_data.append((processed_img, rating_tensor))
             
             if counter % 300 == 0:
                 print(f"processed {counter} images")

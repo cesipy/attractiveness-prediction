@@ -303,3 +303,85 @@ cropped: | # | Image | Original Score | Cropped Score | Difference |
 - **Decreased when cropped**: 17 images (63%)
 - **Increased when cropped**: 4 images (15%)
 
+## Approach 3: clip inference for several adjectives
+
+| # | Image | Original Avg | Cropped Avg | Difference | Notes |
+|---|-------|-------------|-------------|------------|-------|
+| 1 | photo_1.jpg | 3.13 | 3.11 | -0.02 | Very similar |
+| 2 | photo_2.jpg | 1.63 | 2.35 | +0.72 | Improved when cropped |
+| 3 | photo_3.jpg | 1.32 | 2.91 | +1.59 | Much better cropped |
+| 4 | photo_4.jpg | 8.03 | 7.48 | -0.55 | Slightly lower |
+| 5 | photo_5.jpg | 4.78 | 7.19 | +2.41 | **Major improvement** |
+| 6 | photo_6.jpg | 5.90 | No face detected | N/A | Face detection failed |
+| 7 | photo_7.jpg | 2.07 | 3.50 | +1.43 | Better when cropped |
+| 8 | photo_8.jpg | 1.15 | 1.61 | +0.46 | Slightly improved |
+| 9 | photo_9.jpg | 4.95 | 5.82 | +0.87 | Improved |
+| 10 | photo_10.jpg | 3.67 | 4.40 | +0.73 | Better cropped |
+| 11 | photo_11.jpg | 4.11 | 3.50 | -0.61 | Slightly worse |
+| 12 | photo_12.jpg | 6.14 | 7.31 | +1.17 | Improved |
+| 13 | photo_13.jpg | 9.00 | 6.90 | -2.10 | Worse when cropped |
+| 14 | photo_14.jpg | 4.20 | 3.99 | -0.21 | Similar |
+| 15 | photo_15.jpg | 2.62 | 3.45 | +0.83 | Improved |
+| 16 | photo_16.jpg | 3.24 | 3.10 | -0.14 | Very similar |
+| 17 | photo_17.jpg | 3.28 | 4.80 | +1.52 | Much better cropped |
+| 18 | photo_18.jpg | 4.74 | 4.23 | -0.51 | Slightly lower |
+| 19 | photo_19.jpg | 2.87 | 4.11 | +1.24 | Improved |
+| 20 | photo_20.jpg | 4.71 | 5.32 | +0.61 | Better cropped |
+| 21 | photo_21.jpg | 3.28 | 6.08 | +2.80 | **Major improvement** |
+| 22 | photo_22.jpg | 1.51 | 2.45 | +0.94 | Improved |
+| 23 | photo_23.jpg | 3.49 | 6.30 | +2.81 | **Major improvement** |
+| 24 | photo_24.jpg | 2.72 | 4.03 | +1.31 | Much better |
+| 25 | photo_25.jpg | 7.94 | 6.72 | -1.22 | Lower when cropped |
+| 26 | photo_26.jpg | 2.72 | 5.05 | +2.33 | **Major improvement** |
+| 27 | photo_27.jpg | 3.88 | 7.12 | +3.24 | **Biggest improvement** |
+| 28 | photo_28.jpg | 6.15 | 6.69 | +0.54 | Slightly better |
+| 29 | photo_29.jpg | 3.35 | No face detected | N/A | Face detection failed |
+| 30 | photo_30.jpg | 5.51 | 3.79 | -1.72 | Lower when cropped |
+| 31 | photo_31.jpg | 5.42 | 4.39 | -1.03 | Worse cropped |
+| 32 | photo_32.jpg | 3.28 | 3.32 | +0.04 | Very similar |
+| 33 | photo_33.jpg | 2.23 | 2.70 | +0.47 | Slightly better |
+| 34 | photo_34.jpg | 4.62 | 4.65 | +0.03 | Very similar |
+
+
+
+
+- **Images processed**: 34 total
+- **Face detection failures**: 2 images (photos 6, 29)
+- **Valid comparisons**: 32 images
+
+
+- **Improved when cropped**: 22 images (69%)
+- **Worse when cropped**: 10 images (31%)
+- **Average improvement**: +0.65 points
+
+
+
+**Biggest Improvements (>2.0 points):**
+- photo_27: +3.24 (3.88 → 7.12)
+- photo_21: +2.80 (3.28 → 6.08)
+- photo_23: +2.81 (3.49 → 6.30)
+- photo_5: +2.41 (4.78 → 7.19)
+- photo_26: +2.33 (2.72 → 5.05)
+
+**Biggest Decreases:**
+- photo_13: -2.10 (9.00 → 6.90)
+- photo_30: -1.72 (5.51 → 3.79)
+- photo_25: -1.22 (7.94 → 6.72)
+
+
+**1. Cropping Generally Helps (69% of cases)**
+- Most images benefit from face cropping
+- Average improvement of +0.65 points
+
+**2. CLIP Results Look Much More Realistic:**
+- **Full range usage**: Scores from 1.15 to 9.00
+- **No clustering bias**: Unlike LLM models that clustered around 7.8
+- **Varied feature scores**: Different aspects (hotness, beauty, aesthetic) give different results
+
+**3. Individual Feature Variations:**
+Looking at some examples, there are interesting patterns:
+- Some images score high on "hotness" but low on "beauty"
+- "Aesthetic" scores can differ significantly from "attractiveness"
+- This multi-dimensional approach gives richer insights
+
+**Conclusion**: CLIP with cropping works well for attractiveness prediction, using the full rating scale and showing realistic variation across different attractiveness dimensions.
