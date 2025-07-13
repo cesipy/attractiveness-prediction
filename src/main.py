@@ -126,9 +126,10 @@ def main():
     )
     data_processor.plot_training_curves(train_losses=train_losses, eval_losses=test_losses)
 
-    model.save(MODEL_PATH)
+    saved_model_path = model.save(MODEL_PATH)
 
-    #model = CNN(model_type=MODEL_TYPE)
+    model = CNN(model_type=MODEL_TYPE)
+    model.load(saved_model_path)
 
 
     test_on_dir(model=model, dir_name="res/test/")

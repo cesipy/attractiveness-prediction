@@ -33,4 +33,4 @@ MODEL_TYPE = "resnet18"
 DATASET_FILTER = ""       
 USE_DATA_AUGMENTATION = True 
 
-CROPPED = True      # crop the image using facent/mntt
+CROPPED = True     # crop the image using facent/mntt

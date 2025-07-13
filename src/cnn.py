@@ -44,8 +44,10 @@ class CNN(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
     
-    def save(self, path: str):
+    def save(self, path: str) -> str:
+        """saves model and returns path"""
         torch.save(self.state_dict(), path)
+        return path
         
     def load(self, path: str):
         self.load_state_dict(torch.load(path))
