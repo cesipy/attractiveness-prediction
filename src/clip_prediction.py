@@ -98,5 +98,6 @@ def main():
         avg_score = sum(scores.values()) / len(scores)
         print(f"average: {avg_score:.2f}/10")
         print("-" * 40, end="\n\n")
-        
-main()
+  
+if __name__ == "__main__":
+    main()

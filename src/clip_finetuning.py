@@ -20,8 +20,8 @@ class CLIP(nn.Module):
         for param in self.clip.parameters():
             param.requires_grad = False
             
-        for param in self.clip.visual.transformer.resblocks[-1].parameters():
-            param.requires_grad = True
+        # for param in self.clip.visual.transformer.resblocks[-1].parameters():
+        #     param.requires_grad = True
             
         classifier = [
             nn.Linear(in_features=768, out_features=128),
@@ -136,4 +136,6 @@ def main():
         test_data=testloader
     )
     
-main()
+    
+if __name__ == "__main__":
+    main()

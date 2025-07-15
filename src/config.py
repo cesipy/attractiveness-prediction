@@ -3,9 +3,9 @@ from time import time
 FC_DIM_SIZE = 1024
 DROPOUT_PROB = 0.5
 OUTFEATURES = 1
-LR = 4e-5
-EPOCHS = 100
-BATCH_SIZE = 32
+LR = 4e-4
+EPOCHS = 20
+BATCH_SIZE = 256
 
 
 # where to save the trained model. 
@@ -33,6 +33,6 @@ MODEL_TYPE = "resnet18"
 DATASET_FILTER = ""       
 USE_DATA_AUGMENTATION = True 
 
-CROPPED = True    # crop the image using facent/mntt
+CROPPED = False    # crop the image using facent/mntt
 
 CLIP_MODEL = "ViT-L/14@336px"
