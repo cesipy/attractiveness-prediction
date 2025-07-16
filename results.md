@@ -385,3 +385,54 @@ Looking at some examples, there are interesting patterns:
 - This multi-dimensional approach gives richer insights
 
 **Conclusion**: CLIP with cropping works well for attractiveness prediction, using the full rating scale and showing realistic variation across different attractiveness dimensions.
+
+## Approach 4: vision tranformer finetune for regression
+
+
+Fine-tuned DINOv2-base model with the following configuration:
+```python
+HIDDEN_UNITS_VIT = 1024
+BACKBONE = "facebook/dinov2-base"
+# Only classifier layers trained, backbone frozen
+```
+
+| #  | Image                         | Original Score | Face-Cropped Score | Difference |
+|----|------------------------------|----------------|-------------------|------------|
+| 1  | res/test/photo_1.jpg         | 7.334 / 10     | 6.488 / 10        | -0.846     |
+| 2  | res/test/photo_2.jpg         | 8.592 / 10     | 4.985 / 10        | -3.607     |
+| 3  | res/test/photo_3.jpg         | 5.693 / 10     | 5.507 / 10        | -0.186     |
+| 4  | res/test/photo_4.jpg         | 6.819 / 10     | 6.473 / 10        | -0.346     |
+| 5  | res/test/photo_5.jpg         | 6.818 / 10     | 5.170 / 10        | -1.648     |
+| 6  | res/test/photo_6.jpg         | 5.410 / 10     | No face detected  | N/A        |
+| 7  | res/test/photo_7.jpg         | 7.029 / 10     | 5.126 / 10        | -1.903     |
+| 8  | res/test/photo_8.jpg         | 5.720 / 10     | 5.044 / 10        | -0.676     |
+| 9  | res/test/photo_9.jpg         | 6.235 / 10     | 6.189 / 10        | -0.046     |
+| 10 | res/test/photo_10.jpg        | 7.334 / 10     | 6.870 / 10        | -0.464     |
+| 11 | res/test/photo_11.jpg        | 5.722 / 10     | 6.522 / 10        | +0.800     |
+| 12 | res/test/photo_12.jpg        | 6.456 / 10     | 6.334 / 10        | -0.122     |
+| 13 | res/test/photo_13.jpg        | 8.181 / 10     | 7.414 / 10        | -0.767     |
+| 14 | res/test/photo_14.jpg        | 5.855 / 10     | 6.471 / 10        | +0.616     |
+| 15 | res/test/photo_15.jpg        | 7.768 / 10     | 5.597 / 10        | -2.171     |
+| 16 | res/test/photo_16.jpg        | 6.482 / 10     | 5.101 / 10        | -1.381     |
+| 17 | res/test/photo_17.jpg        | 4.735 / 10     | 5.470 / 10        | +0.735     |
+| 18 | res/test/photo_18.jpg        | 7.277 / 10     | 5.868 / 10        | -1.409     |
+| 19 | res/test/photo_19.jpg        | 7.748 / 10     | 7.073 / 10        | -0.675     |
+| 20 | res/test/photo_20.jpg        | 7.381 / 10     | 6.212 / 10        | -1.169     |
+| 21 | res/test/photo_21.jpg        | 8.098 / 10     | 7.042 / 10        | -1.056     |
+| 22 | res/test/photo_22.jpg        | 5.345 / 10     | 4.241 / 10        | -1.104     |
+| 23 | res/test/photo_23.jpg        | 6.989 / 10     | 6.227 / 10        | -0.762     |
+| 24 | res/test/photo_24.jpg        | 6.130 / 10     | 5.730 / 10        | -0.400     |
+| 25 | res/test/photo_25.jpg        | 7.998 / 10     | 5.854 / 10        | -2.144     |
+| 26 | res/test/photo_26.jpg        | 7.729 / 10     | 7.711 / 10        | -0.018     |
+| 27 | res/test/photo_27.jpg        | 7.489 / 10     | 8.202 / 10        | +0.713     |
+| 28 | res/test/photo_28.jpg        | 6.465 / 10     | 7.434 / 10        | +0.969     |
+| 29 | res/test/photo_29.jpg        | 6.076 / 10     | No face detected  | N/A        |
+| 30 | res/test/photo_30.jpg        | 6.466 / 10     | 6.116 / 10        | -0.350     |
+| 31 | res/test/photo_31.jpg        | 5.748 / 10     | 5.104 / 10        | -0.644     |
+| 32 | res/test/photo_32.jpg        | 4.278 / 10     | 4.478 / 10        | +0.200     |
+| 33 | res/test/photo_33.jpg        | 5.971 / 10     | 6.754 / 10        | +0.783     |
+| 34 | res/test/photo_34.jpg        | 6.979 / 10     | 5.870 / 10        | -1.109     |
+
+
+
+This provides the most realistic results so far!

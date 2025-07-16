@@ -3,7 +3,7 @@ from time import time
 FC_DIM_SIZE = 1024
 DROPOUT_PROB = 0.5
 OUTFEATURES = 1
-LR = 4e-4
+LR = 4e-5
 EPOCHS = 20
 BATCH_SIZE = 256
 

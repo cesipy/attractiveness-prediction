@@ -25,8 +25,8 @@ class ViT(nn.Module):
         for params in self.backbone.parameters():
             params.requires_grad = False
             
-        # for param in self.backbone.encoder.layer[-1].parameters():
-        #     param.requires_grad = True
+        for param in self.backbone.encoder.layer[-1].parameters():
+            param.requires_grad = True
             
         classifier = nn.Sequential(
             nn.Linear(in_features=768, out_features=HIDDEN_UNITS_VIT), 
@@ -185,7 +185,8 @@ def test_on_dir(model: ViT, dir_name):
                    if f.endswith((".jpg", ".png", ".jpeg"))]
     
     # sort numbers based on name, to have photo_i.jpg, where i is in ascending order
-    image_files.sort(key=lambda x: int(x.split('_')[1].split('.')[0]))
+    #image_files.sort(key=lambda x: int(x.split('_')[1].split('.')[0]))
+    image_files.sort(key=lambda x: int(x.split(".")[0]))
     
     for file_name in image_files:
         if file_name.endswith(".jpg") or file_name.endswith(".png") or file_name.endswith(".jpeg"):
@@ -210,31 +211,34 @@ def test_on_dir(model: ViT, dir_name):
                 test_on_photo(model=model, path=img_path)
 
 def main(): 
-    data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
-    avg_data = data_processor.get_averages(data=data)
+    # data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
+    # avg_data = data_processor.get_averages(data=data)
     
-    random.shuffle(avg_data)
-    train_test_index = int(len(avg_data) * TRAIN_RATIO)
-    train_data  = avg_data[:train_test_index]
-    test_data = avg_data[train_test_index:]
+    # random.shuffle(avg_data)
+    # train_test_index = int(len(avg_data) * TRAIN_RATIO)
+    # train_data  = avg_data[:train_test_index]
+    # test_data = avg_data[train_test_index:]
     
-    train_dataset = CustomDataset(train_data, suffix="train", data_augment=USE_DATA_AUGMENTATION)
-    test_dataset = CustomDataset(test_data, suffix="test")
-    trainloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    testloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    # train_dataset = CustomDataset(train_data, suffix="train", data_augment=USE_DATA_AUGMENTATION)
+    # test_dataset = CustomDataset(test_data, suffix="test")
+    # trainloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # testloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
     
-    print(f"Dataset size: {len(train_dataset)}")
+    # print(f"Dataset size: {len(train_dataset)}")
+    # model = ViT()
+    
+    # train_losses, test_losses = train(
+    #     model=model, 
+    #     train_data=trainloader, 
+    #     test_data=testloader
+    # )
+    # data_processor.plot_training_curves(train_losses=train_losses, eval_losses=test_losses)
+    # saved_model_path = model.save(MODEL_PATH)
+    
     model = ViT()
-    
-    train_losses, test_losses = train(
-        model=model, 
-        train_data=trainloader, 
-        test_data=testloader
-    )
-    data_processor.plot_training_curves(train_losses=train_losses, eval_losses=test_losses)
-    saved_model_path = model.save(MODEL_PATH)
+    model.load("res/models/model1752614241.pth")
 
-    test_on_dir(model=model, dir_name="res/test/")
+    test_on_dir(model=model, dir_name="res/data_thispersondoesnotexist")
     
     
 if __name__ == "__main__":
