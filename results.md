@@ -1,4 +1,8 @@
-# Results
+# Results & Ideas
+
+
+## Ideas
+- pretrained models for face recognition tasks: https://github.com/serengil/deepface 
 
 
 
