@@ -24,14 +24,20 @@ class FaceRegressor(nn.Module):
     def __init__(self):
         super().__init__()
         self.backbone = InceptionResnetV1(pretrained='vggface2').eval()
-        for p in self.backbone.parameters():
-            p.requires_grad = False
+        
+        layers = list(self.backbone.children())
+        
+        for layer in layers[:-3]:  
+            for param in layer.parameters():
+                param.requires_grad = False
 
         self.classifier = nn.Sequential(
             nn.Linear(512, 1024),
             nn.ReLU(inplace=True),
+            nn.Dropout(DROPOUT_PROB),
             nn.Linear(1024, 512),
             nn.ReLU(inplace=True),
+            nn.Dropout(DROPOUT_PROB),
             nn.Linear(512, 1)
         )
 
@@ -113,10 +119,14 @@ def evaluate_single_photo(model, img_path, mtcnn):
     return y_pred
 
 def test_on_dir(model, dir_name, mtcnn):
-    files = [f for f in os.listdir(dir_name) if f.lower().endswith((".jpg", ".png", ".jpeg"))]
-    files.sort(key=lambda x: int(x.split(".")[0]))  # expects 0.jpg, 1.jpg etc.
-
-    for file in files:
+    image_files = [f for f in os.listdir(dir_name) if f.lower().endswith((".jpg", ".png", ".jpeg"))]
+    # sort numbers based on name, to have photo_i.jpg, where i is in ascending order
+    image_files.sort(key=lambda x: int(x.split('_')[1].split('.')[0]))
+    
+    # for thispersondoesnotexist
+    # image_files.sort(key=lambda x: int(x.split(".")[0]))
+    
+    for file in image_files:
         path = os.path.join(dir_name, file)
         score = evaluate_single_photo(model, path, mtcnn)
         if score is not None:
@@ -126,7 +136,17 @@ def test_on_dir(model, dir_name, mtcnn):
 
 
 def main():
-    data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
+    mtcnn = MTCNN(
+        image_size=IMAGE_SIZE[0],
+        margin=0,
+        min_face_size=20,
+        thresholds=[0.6, 0.7, 0.8],
+        factor=0.709,
+        post_process=False,
+        keep_all=False
+    )
+    
+    data = data_processor.get_items_scut("res/data_scut", filter=DATASET_FILTER)
     avg_data = data_processor.get_averages(data=data)
     
     random.shuffle(avg_data)
@@ -142,9 +162,10 @@ def main():
     model = FaceRegressor()
     model = train(model, trainloader, testloader)
     model.save(MODEL_PATH)
-
+    # model = FaceRegressor()
+    # model.load("res/models/model1752934238.pth")
     # test on new images
-    test_on_dir(model, dir_name="res/data_thispersondoesnotexist", mtcnn=mtcnn)
+    test_on_dir(model, dir_name="res/test", mtcnn=mtcnn)
 
 if __name__ == "__main__":
     main()

@@ -440,3 +440,133 @@ BACKBONE = "facebook/dinov2-base"
 
 
 This provides the most realistic results so far!
+
+
+
+### Add new dataset ME_Beatuy!
+
+**comparision**
+comparision on my custom testset: only SCUT vs SCUT + mebeauty. 
+```python
+FC_DIM_SIZE = 1024
+DROPOUT_PROB = 0.3
+OUTFEATURES = 1
+LR = 1.5e-5
+EPOCHS = 25
+BATCH_SIZE = 32
+```
+
+**without**, final loss is 
+```
+Epoch 19/25, Loss: 0.0416, Eval Loss: 0.0352
+Epoch 20/25, Loss: 0.0416, Eval Loss: 0.0491
+Epoch 21/25, Loss: 0.0391, Eval Loss: 0.0510
+Epoch 22/25, Loss: 0.0412, Eval Loss: 0.0701
+Epoch 23/25, Loss: 0.0364, Eval Loss: 0.0633
+Epoch 24/25, Loss: 0.0382, Eval Loss: 0.0433
+Epoch 25/25, Loss: 0.0387, Eval Loss: 0.0374
+```
+
+<img src="res/report_res/18571907.png" width=400> 
+
+| #  | Image                         | Predicted Score |
+|----|-------------------------------|-----------------|
+| 1  | res/test/photo_1.jpg         | 6.889 / 10      |
+| 2  | res/test/screeenshot_1.png   | 6.275 / 10      |
+| 3  | res/test/photo_2.jpg         | 4.351 / 10      |
+| 4  | res/test/photo_3.jpg         | 6.388 / 10      |
+| 5  | res/test/photo_4.jpg         | 7.441 / 10      |
+| 6  | res/test/photo_5.jpg         | 5.549 / 10      |
+| 7  | res/test/photo_6.jpg         | 5.217 / 10      |
+| 8  | res/test/photo_7.jpg         | 5.771 / 10      |
+| 9  | res/test/photo_8.jpg         | 5.671 / 10      |
+| 10 | res/test/photo_9.jpg         | 7.187 / 10      |
+| 11 | res/test/photo_10.jpg        | 7.221 / 10      |
+| 12 | res/test/photo_11.jpg        | 4.893 / 10      |
+| 13 | res/test/photo_12.jpg        | 6.810 / 10      |
+| 14 | res/test/photo_13.jpg        | 7.670 / 10      |
+| 15 | res/test/photo_14.jpg        | 5.612 / 10      |
+| 16 | res/test/photo_15.jpg        | 5.505 / 10      |
+| 17 | res/test/photo_16.jpg        | 6.030 / 10      |
+| 18 | res/test/photo_17.jpg        | 5.068 / 10      |
+| 19 | res/test/photo_18.jpg        | 6.821 / 10      |
+| 20 | res/test/photo_19.jpg        | 6.025 / 10      |
+| 21 | res/test/photo_20.jpg        | 7.256 / 10      |
+| 22 | res/test/photo_21.jpg        | 6.583 / 10      |
+| 23 | res/test/photo_22.jpg        | 5.958 / 10      |
+| 24 | res/test/photo_23.jpg        | 6.420 / 10      |
+| 25 | res/test/photo_24.jpg        | 4.893 / 10      |
+| 26 | res/test/photo_25.jpg        | 6.519 / 10      |
+| 27 | res/test/photo_26.jpg        | 7.183 / 10      |
+| 28 | res/test/photo_27.jpg        | 7.538 / 10      |
+| 29 | res/test/photo_28.jpg        | 7.273 / 10      |
+| 30 | res/test/photo_29.jpg        | 4.588 / 10      |
+| 31 | res/test/photo_30.jpg        | 6.549 / 10      |
+| 32 | res/test/photo_31.jpg        | 5.265 / 10      |
+| 33 | res/test/photo_32.jpg        | 4.716 / 10      |
+| 34 | res/test/photo_33.jpg        | 5.235 / 10      |
+| 35 | res/test/photo_34.jpg        | 6.758 / 10      |
+
+
+**WITH MEBEATUY**
+| #  | Image                         | First Score | Second Score | Difference |
+|----|-------------------------------|-------------|--------------|------------|
+| 1  | res/test/photo_1.jpg         | 6.889 / 10  | 7.108 / 10   | +0.219     |
+| 2  | res/test/screeenshot_1.png   | 6.275 / 10  | 4.709 / 10   | -1.566     |
+| 3  | res/test/photo_2.jpg         | 4.351 / 10  | 4.098 / 10   | -0.253     |
+| 4  | res/test/photo_3.jpg         | 6.388 / 10  | 5.686 / 10   | -0.702     |
+| 5  | res/test/photo_4.jpg         | 7.441 / 10  | 6.820 / 10   | -0.621     |
+| 6  | res/test/photo_5.jpg         | 5.549 / 10  | 6.286 / 10   | +0.737     |
+| 7  | res/test/photo_6.jpg         | 5.217 / 10  | 4.541 / 10   | -0.676     |
+| 8  | res/test/photo_7.jpg         | 5.771 / 10  | 5.671 / 10   | -0.100     |
+| 9  | res/test/photo_8.jpg         | 5.671 / 10  | 4.400 / 10   | -1.271     |
+| 10 | res/test/photo_9.jpg         | 7.187 / 10  | 7.243 / 10   | +0.056     |
+| 11 | res/test/photo_10.jpg        | 7.221 / 10  | 6.782 / 10   | -0.439     |
+| 12 | res/test/photo_11.jpg        | 4.893 / 10  | 5.001 / 10   | +0.108     |
+| 13 | res/test/photo_12.jpg        | 6.810 / 10  | 6.421 / 10   | -0.389     |
+| 14 | res/test/photo_13.jpg        | 7.670 / 10  | 7.476 / 10   | -0.194     |
+| 15 | res/test/photo_14.jpg        | 5.612 / 10  | 4.989 / 10   | -0.623     |
+| 16 | res/test/photo_15.jpg        | 5.505 / 10  | 5.564 / 10   | +0.059     |
+| 17 | res/test/photo_16.jpg        | 6.030 / 10  | 5.144 / 10   | -0.886     |
+| 18 | res/test/photo_17.jpg        | 5.068 / 10  | 3.940 / 10   | -1.128     |
+| 19 | res/test/photo_18.jpg        | 6.821 / 10  | 7.404 / 10   | +0.583     |
+| 20 | res/test/photo_19.jpg        | 6.025 / 10  | 5.425 / 10   | -0.600     |
+| 21 | res/test/photo_20.jpg        | 7.256 / 10  | 6.273 / 10   | -0.983     |
+| 22 | res/test/photo_21.jpg        | 6.583 / 10  | 5.813 / 10   | -0.770     |
+| 23 | res/test/photo_22.jpg        | 5.958 / 10  | 5.303 / 10   | -0.655     |
+| 24 | res/test/photo_23.jpg        | 6.420 / 10  | 7.507 / 10   | +1.087     |
+| 25 | res/test/photo_24.jpg        | 4.893 / 10  | 5.517 / 10   | +0.624     |
+| 26 | res/test/photo_25.jpg        | 6.519 / 10  | 6.955 / 10   | +0.436     |
+| 27 | res/test/photo_26.jpg        | 7.183 / 10  | 6.220 / 10   | -0.963     |
+| 28 | res/test/photo_27.jpg        | 7.538 / 10  | 7.526 / 10   | -0.012     |
+| 29 | res/test/photo_28.jpg        | 7.273 / 10  | 6.891 / 10   | -0.382     |
+| 30 | res/test/photo_29.jpg        | 4.588 / 10  | 4.509 / 10   | -0.079     |
+| 31 | res/test/photo_30.jpg        | 6.549 / 10  | 7.155 / 10   | +0.606     |
+| 32 | res/test/photo_31.jpg        | 5.265 / 10  | 5.238 / 10   | -0.027     |
+| 33 | res/test/photo_32.jpg        | 4.716 / 10  | 4.484 / 10   | -0.232     |
+| 34 | res/test/photo_33.jpg        | 5.235 / 10  | 6.123 / 10   | +0.888     |
+| 35 | res/test/photo_34.jpg        | 6.758 / 10  | 7.274 / 10   | +0.516     |
+
+
+## Approach 5: vggface2 finetune
+
+results in low loss of
+```
+Epoch 17/20 | Train Loss: 0.1071 | Eval Loss: 0.0849
+Epoch 18/20 | Train Loss: 0.1075 | Eval Loss: 0.0852
+Epoch 19/20 | Train Loss: 0.1063 | Eval Loss: 0.0813
+Epoch 20/20 | Train Loss: 0.1072 | Eval Loss: 0.0835
+```
+
+but has a very low variance in testing. maybe only learns to optimize for the mean?
+```
+Predicted beauty for 18.jpg: 6.34/10
+Predicted beauty for 19.jpg: 6.26/10
+Predicted beauty for 20.jpg: 6.42/10
+Predicted beauty for 21.jpg: 6.26/10
+Predicted beauty for 22.jpg: 6.21/10
+Predicted beauty for 23.jpg: 6.24/10
+Predicted beauty for 24.jpg: 6.24/10
+```
+
+Decided to stop experimenting here. also regularization did not work well here...
