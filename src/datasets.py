@@ -1,5 +1,7 @@
 import pickle
 import os
+import glob
+import pandas as pd
 
 from typing import Tuple, Optional
 
@@ -172,5 +174,50 @@ class CustomDataset(Dataset):
             img = self.transform(img)
 
         return img, rating
-            
+    
+    
+
+
+    
+def main(): 
+    dir_path = "res/data_mebeauty/cropped_images/images_crop_align_mtcnn"
+    train_scores_path = "res/data_mebeauty/scores/train_crop.csv"
+    test_scores_path = "res/data_mebeauty/scores/test_crop.csv"
+    
+    
+    image_paths = glob.glob(f"{dir_path}/**/*.jpg", recursive=True)
+    
+    print(image_paths[:5])
+    
+    df = pd.read_csv(train_scores_path)
+    print(f"Train scores: {df.shape[0]} images")
+    print(f"img path: {df.iloc[0, 0]}, score: {df.iloc[0, 1]}")
+    
+    data_list = []
+    
+    for idx, row in df.iterrows():
+        img_path = row[0]
+        score = row[1]
         
+        parent_path = "res/data_mebeauty"
+        img_path = os.path.join(parent_path, img_path)
+        # print(f"Image path: {img_path}, score: {score}")
+        
+        if not os.path.exists(img_path):
+            print(f"Image {img_path} not found, skipping...")
+            continue
+        
+        data_list.append((img_path, score))
+        
+    dataset = CustomDataset(
+        data=data_list, 
+        suffix="train", 
+        data_augment=True, 
+        clip_preprocess=False
+    )
+    
+        
+        
+if __name__ == "__main__":
+    main()
+    

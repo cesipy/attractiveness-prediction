@@ -103,7 +103,7 @@ def test_on_dir(model: CNN, dir_name):
 
 
 def main(): 
-    data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
+    data = data_processor.get_items_scut("res/data_scut", filter=DATASET_FILTER)
     avg_data = data_processor.get_averages(data=data)
     
     random.shuffle(avg_data)

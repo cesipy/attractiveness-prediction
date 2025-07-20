@@ -115,7 +115,7 @@ def train(model: CLIP, train_data: DataLoader, test_data: DataLoader):
     return losses, test_losses
     
 def main(): 
-    data = data_processor.get_items("res/data_scut", filter=DATASET_FILTER)
+    data = data_processor.get_items_scut("res/data_scut", filter=DATASET_FILTER)
     avg_data = data_processor.get_averages(data=data)
     
     

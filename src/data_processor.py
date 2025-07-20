@@ -11,7 +11,7 @@ from config import *
 
 ratings_name = "All_Ratings.xlsx"
 
-def get_items(data_dir: str, filter:str=""): 
+def get_items_scut(data_dir: str, filter:str=""): 
     
     ratings =  pd.read_excel(os.path.join(data_dir, ratings_name))
     columns =  ratings.columns
@@ -27,6 +27,29 @@ def get_items(data_dir: str, filter:str=""):
     
     return data
 
+def get_items_mebeauty(scores_path:str):
+    df = pd.read_csv(scores_path)
+
+    data_list = []
+    
+    for idx, row in df.iterrows():
+        img_path = row[0]
+        score = row[1]
+        
+        # scut is on [0,5]
+        score = int(score/2)
+        
+        parent_path = "res/data_mebeauty"
+        img_path = os.path.join(parent_path, img_path)
+        # print(f"Image path: {img_path}, score: {score}")
+        
+        if not os.path.exists(img_path):
+            print(f"Image {img_path} not found, skipping...")
+            continue
+        
+        data_list.append((img_path, score))
+        
+    return data_list
 
 def get_averages(data: Tuple[str, int]) -> Tuple[float, float]:
     hash_map = {}
@@ -82,7 +105,7 @@ def plot_training_curves(train_losses, eval_losses):
 if __name__ == "__main__":
     filter = "F"        # only female -F
                         # only male   -M
-    data = get_items("res/data_scut", filter=filter)
+    data = get_items_scut("res/data_scut", filter=filter)
     
     avg_data = get_averages(data=data)
     datasets.CustomDataset(avg_data, suffix="train")
