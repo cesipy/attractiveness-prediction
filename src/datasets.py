@@ -39,7 +39,7 @@ def process_single_image_face_crop(path: str, model) -> Tensor:
         return None
 
     # same preprocessing as in training
-    face_crop = cv.resize(face_crop, IMAGE_SIZE)  # Use your IMAGE_SIZE
+    face_crop = cv.resize(face_crop, IMAGE_SIZE)  
     face_crop = face_crop.astype(np.float32) / 255.0
     face_crop = np.transpose(face_crop, (2, 0, 1))
     face_tensor = torch.from_numpy(face_crop.astype(np.float32))
@@ -108,16 +108,11 @@ class CustomDataset(Dataset):
 
         if data_augment: 
             self.transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.2),
-                transforms.RandomVerticalFlip(p=0.3),           
-                transforms.RandomRotation(degrees=15),
-                transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-                # transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0)),
-                
-                # transforms.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0)),
-                # transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),
-                # transforms.RandomZoomOut(scale=(0.8, 1.2)),
-                # transforms.RandomRotation(degrees=45),  # Very aggressive - try only if needed
+                transforms.RandomHorizontalFlip(p=0.3),  
+                transforms.RandomRotation(degrees=15),   
+                transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1, hue=0.05),
+                transforms.RandomAffine(degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)),
+                transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 1.0)),  
             ])
         
         if os.path.exists(dataset_path):

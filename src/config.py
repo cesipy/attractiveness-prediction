@@ -1,11 +1,11 @@
 from time import time
 
 FC_DIM_SIZE = 1024
-DROPOUT_PROB = 0.3
+DROPOUT_PROB = 0.35
 OUTFEATURES = 1
-LR = 1.5e-5
-EPOCHS = 25
-BATCH_SIZE = 256
+LR = 1e-5
+EPOCHS = 15
+BATCH_SIZE = 64
 
 
 # where to save the trained model. 
@@ -16,9 +16,9 @@ MODEL_PATH = f"res/models/model{int(time())}.pth"
 PREFIX_DATASET = "res/preprocessed_data/preprocessed_data"
 
 # what amount of data set to use for training
-TRAIN_RATIO = 0.8
+TRAIN_RATIO = 0.9
 
-IMAGE_SIZE = (224,224)
+IMAGE_SIZE = (352,352) #(224,224)
 
 MODEL_TYPE = "resnet18"
 
@@ -33,7 +33,7 @@ USE_DATA_AUGMENTATION = True
 # path of the scut images
 SCUT_IMAGE_PATH = "res/data_scut/Images"
 
-CROPPED = False    # crop the image using facent/mntt
+CROPPED = False   # crop the image using facent/mntt
 
 CLIP_MODEL = "ViT-L/14@336px"
 

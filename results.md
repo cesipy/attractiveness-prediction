@@ -548,6 +548,81 @@ Epoch 25/25, Loss: 0.0387, Eval Loss: 0.0374
 | 35 | res/test/photo_34.jpg        | 6.758 / 10  | 7.274 / 10   | +0.516     |
 
 
+
+
+
+**results with larger image size of (352, 352)**
+```
+Predicted score for the image res/test/photo_1.jpg 6.309/10
+Predicted score for the image res/test/photo_1.jpg_cropped_face.jpg 5.975/10
+Predicted score for the image res/test/screeenshot_1.png 5.137/10
+Predicted score for the image res/test/photo_2.jpg 4.546/10
+Predicted score for the image res/test/photo_2.jpg_cropped_face.jpg 4.748/10
+Predicted score for the image res/test/photo_3.jpg_cropped_face.jpg 5.129/10
+Predicted score for the image res/test/photo_3.jpg 5.784/10
+Predicted score for the image res/test/photo_4.jpg 7.070/10
+Predicted score for the image res/test/photo_4.jpg_cropped_face.jpg 7.099/10
+Predicted score for the image res/test/photo_5.jpg 5.864/10
+Predicted score for the image res/test/photo_5.jpg_cropped_face.jpg 4.418/10
+Predicted score for the image res/test/photo_6.jpg 5.037/10
+Predicted score for the image res/test/photo_7.jpg_cropped_face.jpg 4.901/10
+Predicted score for the image res/test/photo_7.jpg 5.061/10
+Predicted score for the image res/test/photo_8.jpg 5.355/10
+Predicted score for the image res/test/photo_8.jpg_cropped_face.jpg 5.316/10
+Predicted score for the image res/test/photo_9.jpg_cropped_face.jpg 6.363/10
+Predicted score for the image res/test/photo_9.jpg 6.644/10
+Predicted score for the image res/test/photo_10.jpg 6.262/10
+Predicted score for the image res/test/photo_10.jpg_cropped_face.jpg 6.242/10
+Predicted score for the image res/test/photo_11.jpg_cropped_face.jpg 6.248/10
+Predicted score for the image res/test/photo_11.jpg 5.963/10
+Predicted score for the image res/test/photo_12.jpg 7.053/10
+Predicted score for the image res/test/photo_12.jpg_cropped_face.jpg 6.555/10
+Predicted score for the image res/test/photo_13.jpg_cropped_face.jpg 7.270/10
+Predicted score for the image res/test/photo_13.jpg 7.280/10
+Predicted score for the image res/test/photo_14.jpg 5.695/10
+Predicted score for the image res/test/photo_14.jpg_cropped_face.jpg 5.495/10
+Predicted score for the image res/test/photo_15.jpg_cropped_face.jpg 4.615/10
+Predicted score for the image res/test/photo_15.jpg 4.884/10
+Predicted score for the image res/test/photo_16.jpg_cropped_face.jpg 5.112/10
+Predicted score for the image res/test/photo_16.jpg 5.290/10
+Predicted score for the image res/test/photo_17.jpg_cropped_face.jpg 4.015/10
+Predicted score for the image res/test/photo_17.jpg 4.558/10
+Predicted score for the image res/test/photo_18.jpg_cropped_face.jpg 4.758/10
+Predicted score for the image res/test/photo_18.jpg 6.982/10
+Predicted score for the image res/test/photo_19.jpg 5.036/10
+Predicted score for the image res/test/photo_19.jpg_cropped_face.jpg 5.822/10
+Predicted score for the image res/test/photo_20.jpg 5.766/10
+Predicted score for the image res/test/photo_20.jpg_cropped_face.jpg 6.002/10
+Predicted score for the image res/test/photo_21.jpg_cropped_face.jpg 6.637/10
+Predicted score for the image res/test/photo_21.jpg 5.090/10
+Predicted score for the image res/test/photo_22.jpg_cropped_face.jpg 4.498/10
+Predicted score for the image res/test/photo_22.jpg 5.757/10
+Predicted score for the image res/test/photo_23.jpg 7.031/10
+Predicted score for the image res/test/photo_23.jpg_cropped_face.jpg 5.349/10
+Predicted score for the image res/test/photo_24.jpg 6.029/10
+Predicted score for the image res/test/photo_24.jpg_cropped_face.jpg 5.421/10
+Predicted score for the image res/test/photo_25.jpg 6.478/10
+Predicted score for the image res/test/photo_25.jpg_cropped_face.jpg 5.921/10
+Predicted score for the image res/test/photo_26.jpg_cropped_face.jpg 7.325/10
+Predicted score for the image res/test/photo_26.jpg 6.319/10
+Predicted score for the image res/test/photo_27.jpg 6.574/10
+Predicted score for the image res/test/photo_27.jpg_cropped_face.jpg 6.170/10
+Predicted score for the image res/test/photo_28.jpg_cropped_face.jpg 7.025/10
+Predicted score for the image res/test/photo_28.jpg 6.653/10
+Predicted score for the image res/test/photo_29.jpg 5.386/10
+Predicted score for the image res/test/photo_30.jpg_cropped_face.jpg 5.678/10
+Predicted score for the image res/test/photo_30.jpg 6.959/10
+Predicted score for the image res/test/photo_31.jpg_cropped_face.jpg 5.177/10
+Predicted score for the image res/test/photo_31.jpg 6.157/10
+Predicted score for the image res/test/photo_32.jpg_cropped_face.jpg 5.304/10
+Predicted score for the image res/test/photo_32.jpg 4.941/10
+Predicted score for the image res/test/photo_33.jpg 5.634/10
+Predicted score for the image res/test/photo_33.jpg_cropped_face.jpg 6.015/10
+Predicted score for the image res/test/photo_34.jpg 6.902/10
+Predicted score for the image res/test/photo_34.jpg_cropped_face.jpg 5.061/10
+```
+
+
 ## Approach 5: vggface2 finetune
 
 results in low loss of

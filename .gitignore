@@ -7,3 +7,4 @@ res/*/*pkl
 res/data_scut
 res/test
 logs/*.txt
+res/data_*
