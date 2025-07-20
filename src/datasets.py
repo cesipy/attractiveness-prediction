@@ -171,6 +171,36 @@ class CustomDataset(Dataset):
         return img, rating
     
     
+class GANDataset(Dataset):
+    def __init__(self, data, transform=None, has_label=True):
+        self.data = data  
+        self.transform = transform
+        self.has_label = has_label
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        if self.has_label: 
+            img_path, score = self.data[idx]
+    
+
+            img = Image.open(img_path).convert('RGB')
+            
+            if self.transform:
+                img = self.transform(img)
+        
+        else: 
+            img_path = self.data[idx]
+            img = Image.open(img_path).convert('RGB')
+            
+            if self.transform:
+                img = self.transform(img)
+                
+            score = SCORE_PLACEHOLDER
+        
+        return img, torch.tensor(score, dtype=torch.float32)
+    
 
 
     

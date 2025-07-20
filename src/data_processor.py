@@ -5,6 +5,9 @@ import pandas as pd
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
+
+from facenet_pytorch import MTCNN
 
 import datasets
 from config import *
@@ -102,10 +105,63 @@ def plot_training_curves(train_losses, eval_losses):
     plt.tight_layout()
     plt.savefig("res/training_curves.png", dpi=300, bbox_inches='tight')
     
-if __name__ == "__main__":
-    filter = "F"        # only female -F
-                        # only male   -M
-    data = get_items_scut("res/data_scut", filter=filter)
     
-    avg_data = get_averages(data=data)
-    datasets.CustomDataset(avg_data, suffix="train")
+def crop_scut(): 
+    path = "res/data_scut/Images"
+    mtcnn = MTCNN(
+        image_size=None, 
+        margin=40,
+        min_face_size=20,
+        thresholds=[0.6, 0.7, 0.7],
+        factor=0.709,
+        post_process=False,
+        device='cuda' if torch.cuda.is_available() else 'cpu'
+    )
+    
+    image_files = os.listdir(path)
+    print(image_files[:5])
+    
+    for file_name in image_files:
+        if file_name.endswith(".jpg") or file_name.endswith(".png") or file_name.endswith(".jpeg"):
+            img_path = os.path.join(path, file_name)
+            img_cv = cv.imread(img_path)
+            
+            if img_cv is None:
+                print(f" skipping")
+                continue
+            
+            boxes, _ = mtcnn.detect(img_cv)
+            
+            if boxes is not None and len(boxes) > 0:
+                box = boxes[0]
+                x1, y1, x2, y2 = box.astype(int)
+                
+                margin = 40
+                x1 = max(0, x1 - margin)
+                y1 = max(0, y1 - margin)
+                x2 = min(img_cv.shape[1], x2 + margin)
+                y2 = min(img_cv.shape[0], y2 + margin)
+                
+                face_crop = img_cv[y1:y2, x1:x2]
+                
+                os.makedirs("res/data_scut/cropped", exist_ok=True)
+                cv.imwrite(os.path.join("res/data_scut/cropped", file_name), face_crop)
+                print(f"Cropped face saved for {img_path}")
+            else:
+                print(f"No face detected in {img_path}, skipping...")
+    
+    
+    
+    
+    
+if __name__ == "__main__":
+    # filter = "F"        # only female -F
+    #                     # only male   -M
+    # data = get_items_scut("res/data_scut", filter=filter)
+    
+    # avg_data = get_averages(data=data)
+    # datasets.CustomDataset(avg_data, suffix="train")
+    
+    crop_scut()
+    
+    
