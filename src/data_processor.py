@@ -14,6 +14,16 @@ from config import *
 
 ratings_name = "All_Ratings.xlsx"
 
+mtcnn = MTCNN(
+    image_size=None, 
+    margin=40,
+    min_face_size=20,
+    thresholds=[0.6, 0.7, 0.7],
+    factor=0.709,
+    post_process=False,
+    device='cuda' if torch.cuda.is_available() else 'cpu'
+)
+
 def get_items_scut(data_dir: str, filter:str=""): 
     
     ratings =  pd.read_excel(os.path.join(data_dir, ratings_name))
@@ -23,6 +33,9 @@ def get_items_scut(data_dir: str, filter:str=""):
     for i in range(len(ratings)):
         item = ratings.iloc[i]
         filename = item.get("Filename")
+
+        if not os.path.exists(os.path.join(SCUT_IMAGE_PATH, filename)):
+            continue
         
         if filter in filename:
             full_path = os.path.join(SCUT_IMAGE_PATH, item.get("Filename"))
@@ -32,6 +45,7 @@ def get_items_scut(data_dir: str, filter:str=""):
 
 def get_items_mebeauty(scores_path:str):
     df = pd.read_csv(scores_path)
+    not_found_counter = 0
 
     data_list = []
     
@@ -48,11 +62,68 @@ def get_items_mebeauty(scores_path:str):
         
         if not os.path.exists(img_path):
             print(f"Image {img_path} not found, skipping...")
+            not_found_counter += 1
             continue
         
         data_list.append((img_path, score))
         
+    print(f"total not found images: {not_found_counter}")
     return data_list
+
+def get_items_celeba(fraction=1.):
+    data_list = []
+    path = "res/data_celeba/cropped"
+    
+    leng = len(os.listdir(path))
+    idx = int(leng * fraction)
+    counter = 0
+    not_found_counter = 0
+    
+    for file_name in os.listdir(path):
+    
+        if file_name.endswith(".jpg") or file_name.endswith(".png") or file_name.endswith(".jpeg"):
+            img_path = os.path.join(path, file_name)
+            score = SCORE_PLACEHOLDER
+            
+            
+            if not os.path.exists(img_path):
+                print(f"Image {img_path} not found, skipping...")
+                not_found_counter += 1
+                continue
+        
+        data_list.append((img_path, score))
+        counter += 1
+        if counter >= idx: 
+            break
+        
+    print(f"total not found images: {not_found_counter}")
+    return data_list
+    
+def get_items_thispersondoesnotexist(path, fraction=1.):
+    data_list = []
+    idx = int(len(os.listdir(path)) * fraction)
+    counter = 0
+    
+    image_files = [f for f in os.listdir(path)
+                   if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+                     and os.path.isfile(os.path.join(path, f))]
+    
+    for file_name in image_files:
+        img_path = os.path.join(path, file_name)
+        score = SCORE_PLACEHOLDER
+        
+        if not os.path.exists(img_path):
+            print(f"Image {img_path} not found, skipping...")
+            continue
+        
+        data_list.append((img_path, score))
+        counter += 1
+        if counter >= idx:
+            break
+        
+    return data_list
+    
+
 
 def get_averages(data: Tuple[str, int]) -> Tuple[float, float]:
     hash_map = {}
@@ -108,16 +179,7 @@ def plot_training_curves(train_losses, eval_losses):
     
 def crop_scut(): 
     path = "res/data_scut/Images"
-    mtcnn = MTCNN(
-        image_size=None, 
-        margin=40,
-        min_face_size=20,
-        thresholds=[0.6, 0.7, 0.7],
-        factor=0.709,
-        post_process=False,
-        device='cuda' if torch.cuda.is_available() else 'cpu'
-    )
-    
+
     image_files = os.listdir(path)
     print(image_files[:5])
     
@@ -151,9 +213,96 @@ def crop_scut():
                 print(f"No face detected in {img_path}, skipping...")
     
     
+def crop_celeba():
+    path = "res/data_celeba"
+    output_path = "res/data_celeba/cropped"
+    
+    image_files = [f for f in os.listdir(path) 
+                   if f.lower().endswith(('.jpg', '.jpeg', '.png')) 
+                   and os.path.isfile(os.path.join(path, f))]
+    
+    os.makedirs(output_path, exist_ok=True)
+    
+    for file_name in image_files:
+        img_path = os.path.join(path, file_name)
+        
+        face_crop = datasets.get_cropped_image(img_path, mtcnn)
+        
+        if face_crop is not None:
+            output_file = os.path.join(output_path, file_name)
+            cv.imwrite(output_file, face_crop)
+            # print(f"Cropped face saved for {file_name}")
+        else:
+            print(f"No face detected in {file_name}, skipping...")
+
+def crop_mebeauty(): 
+    path = "res/data_mebeauty/scores/test_universal_scores.csv"
+    
+    df = pd.read_csv(path)
+    data = []
+    
+    for idx, row in df.iterrows():
+        img_path = "original_" + row[0]
+        score = row[1]
+        
+        # scut is on [0,5]
+        score = int(score/2)
+        
+        parent_path = "res/data_mebeauty"
+        img_path = os.path.join(parent_path, img_path)
+        
+        data.append((img_path, score))
+        
+    print(f"found {len(data)} images")
     
     
+    os.makedirs("res/data_mebeauty/cropped_images", exist_ok=True)
+    cropped_data = []
+    for i in range(len(data)):
+        img_path, score = data[i]
+        
+        face_crop = datasets.get_cropped_image(img_path, mtcnn)
+        filename = img_path.split("/")[-1]
+        
+        if face_crop is not None:
+            output_file = os.path.join("res/data_mebeauty/cropped_images", filename)
+            cv.imwrite(output_file, face_crop)
+            print(f"Cropped face saved for {filename}")
+            
+            new_path = f"cropped_images/{filename}"
+            cropped_data.append([new_path, score])
+        else:
+            print(f"No face detected in {filename}, skipping...")
+
+    cropped_df = pd.DataFrame(cropped_data, columns=['image_path', 'score'])
+    output_csv = "res/data_mebeauty/scores/test_cropped_scores.csv"
+    cropped_df.to_csv(output_csv, index=False)
     
+    print(f"Created CSV with {len(cropped_data)} cropped images: {output_csv}")
+            
+
+def crop_thispersondoesnotexist(): 
+    path = "res/data_thispersondoesnotexist"
+    
+    image_files = [f for f in os.listdir(path)
+                   if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+                     and os.path.isfile(os.path.join(path, f))]
+    
+    os.makedirs("res/data_thispersondoesnotexist/cropped", exist_ok=True)
+    for file_name in image_files:
+        img_path = os.path.join(path, file_name)
+        
+        face_crop = datasets.get_cropped_image(img_path, mtcnn)
+        
+        if face_crop is not None:
+            output_file = os.path.join("res/data_thispersondoesnotexist/cropped", file_name)
+            cv.imwrite(output_file, face_crop)
+            print(f"Cropped face saved for {file_name}")
+        else:
+            print(f"No face detected in {file_name}, skipping...")
+
+
+
 if __name__ == "__main__":
     # filter = "F"        # only female -F
     #                     # only male   -M
@@ -162,6 +311,5 @@ if __name__ == "__main__":
     # avg_data = get_averages(data=data)
     # datasets.CustomDataset(avg_data, suffix="train")
     
-    crop_scut()
-    
+    crop_thispersondoesnotexist()
     

@@ -18,7 +18,7 @@ PREFIX_DATASET = "res/preprocessed_data/preprocessed_data"
 # what amount of data set to use for training
 TRAIN_RATIO = 0.9
 
-IMAGE_SIZE = (256,256)#(352,352) #(224,224)
+IMAGE_SIZE = (256,256)  #(352,352) #(224,224)
 
 MODEL_TYPE = "resnet18"
 
@@ -39,7 +39,6 @@ CLIP_MODEL = "ViT-L/14@336px"
 
 # for the dataset mebeauty
 ME_PARENT_PATH = "res/data_mebeauty"
-
 
 SCORE_PLACEHOLDER = 1334
 
