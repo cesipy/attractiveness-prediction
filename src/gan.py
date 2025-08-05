@@ -12,6 +12,8 @@ from typing import Tuple, List
 import os
 from tqdm import tqdm
 
+from datetime import datetime
+
 from config import *
 import data_processor
 from datasets import CustomDataset, GANDataset
@@ -24,6 +26,35 @@ torch.backends.cudnn.allow_tf32 = True
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = False 
 torch.backends.cudnn.enabled = True
+
+
+class PerceptualLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # Use VGG19 up to conv4_4 (good balance of features vs speed)
+        vgg = torchvision.models.vgg19(weights='IMAGENET1K_V1').features[:25]
+        self.vgg = vgg.eval()
+        self.vgg = self.vgg.to('cuda' if torch.cuda.is_available() else 'cpu')
+        self.vgg = torch.compile(self.vgg)
+        for p in self.vgg.parameters():
+            p.requires_grad = False
+    
+    def forward(self, input, target):
+        # VGG expects [0,1] normalized with ImageNet stats
+        # Your images are [-1,1], so convert:
+        input_norm = (input + 1) / 2  # [-1,1] -> [0,1]
+        target_norm = (target + 1) / 2
+        
+        # Apply ImageNet normalization
+        mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(input.device)
+        std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(input.device)
+        
+        input_norm = (input_norm - mean) / std
+        target_norm = (target_norm - mean) / std
+        
+        input_features = self.vgg(input_norm)
+        target_features = self.vgg(target_norm)
+        return F.mse_loss(input_features, target_features)
 
 class StyleGANEncoder(nn.Module):
     def __init__(self, latent_dim=512, image_size=256):
@@ -63,7 +94,6 @@ class StyleGANGenerator(nn.Module):
         super().__init__()
         self.latent_dim = latent_dim
         
-        # Generator architecture
         self.initial = nn.Sequential(
             nn.Linear(latent_dim, 512 * 4 * 4),
             nn.ReLU(),
@@ -96,9 +126,16 @@ class StyleGANGenerator(nn.Module):
         return self.decoder(x)
 
 class BeautyGAN:
-    """Complete GAN system for beauty score interpolation"""
     
-    def __init__(self, latent_dim=512, image_size=256, device='cuda'):
+    def __init__(
+        self, 
+        latent_dim=512, 
+        image_size=256, 
+        use_perceptual_loss=False,
+        device="cuda" if torch.cuda.is_available() else "cpu"
+    ):
+        
+        self.use_perceptual_loss = use_perceptual_loss
         self.device = device
         self.latent_dim = latent_dim
         self.image_size = image_size
@@ -118,6 +155,8 @@ class BeautyGAN:
 
         self.adversarial_loss = nn.BCEWithLogitsLoss()
         self.reconstruction_loss = nn.L1Loss()
+        # if use_perceptual_loss:
+        self.perceptual_loss = PerceptualLoss().to(device)
         
         self.encoder = self.encoder.to(memory_format=torch.channels_last)
         self.generator = self.generator.to(memory_format=torch.channels_last)
@@ -198,9 +237,14 @@ class BeautyGAN:
             fake_pred = self.discriminator(fake_images)
             g_adv_loss = self.adversarial_loss(fake_pred, real_labels)
             g_recon_loss = self.reconstruction_loss(fake_images, real_images)
+            if self.use_perceptual_loss:
+
+                g_perceptual_loss = self.perceptual_loss(fake_images, real_images)
             
-            # Simple loss - just reconstruction + small adversarial
-            g_loss = 0.1 * g_adv_loss + 1.0 * g_recon_loss
+                # reconstruction + small adversarial + conceptual
+                g_loss = 0.1 * g_adv_loss + 1.0 * g_recon_loss + 0.01 * g_perceptual_loss    
+            else: 
+                g_loss = 0.1 * g_adv_loss + 1.0 * g_recon_loss
         
         self.scaler.scale(g_loss).backward()
         self.scaler.step(self.opt_g)
@@ -212,9 +256,17 @@ class BeautyGAN:
             'd_loss': d_loss.item(),
             'g_adv_loss': g_adv_loss.item(),
             'g_recon_loss': g_recon_loss.item()
+        } if not self.use_perceptual_loss else {
+            'g_loss': g_loss.item(),
+            'd_loss': d_loss.item(),
+            'g_adv_loss': g_adv_loss.item(),
+            'g_recon_loss': g_recon_loss.item(),
+            'g_perceptual_loss': g_perceptual_loss.item()
         }
     
-    def train(self, dataloader, epochs=100):
+    def train(self, dataloader, epochs=100, 
+            save_every=5, checkpoint_dir="checkpoints"
+        ):
         self.encoder.train()
         self.generator.train()
         self.discriminator.train()
@@ -232,13 +284,27 @@ class BeautyGAN:
             
             for key in epoch_losses:
                 epoch_losses[key] /= len(dataloader)
-            
-            print(f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
-                  f"D_loss: {epoch_losses['d_loss']:.4f}, "
-                  f"Recon_loss: {epoch_losses['g_recon_loss']:.4f}")
+                
+            if self.use_perceptual_loss:
+                print(f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
+                    f"D_loss: {epoch_losses['d_loss']:.4f}, "
+                    f"Recon_loss: {epoch_losses['g_recon_loss']:.4f}, "
+                    f"Perceptual_loss: {epoch_losses['g_perceptual_loss']:.4f}")
+            else:
+                print(f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
+                    f"D_loss: {epoch_losses['d_loss']:.4f}, "
+                    f"Recon_loss: {epoch_losses['g_recon_loss']:.4f}")
             
             if epoch % 5 == 0:
                 self.save_sample_images(dataloader, epoch+1)
+                
+            if (epoch + 1) % save_every == 0:
+                checkpoint_path = os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch+1:03d}.pth')
+                self.save_checkpoint(checkpoint_path, epoch=epoch+1, losses=epoch_losses)
+                self.save_models_only(os.path.join(checkpoint_dir, "models_only"), epoch=epochs)
+                
+        self.save_models_only(os.path.join(checkpoint_dir, "final_models"), epoch=epochs)
+
     
     def interpolate_beauty_scores(self, face1, face2, score1, score2, num_interpolations=10):
         self.encoder.eval()
@@ -323,6 +389,93 @@ class BeautyGAN:
         
         self.encoder.train()
         self.generator.train()
+        
+    def save_checkpoint(self, checkpoint_path, epoch=None, losses=None, metadata=None):
+            """Save complete model checkpoint"""
+            os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+            
+            checkpoint = {
+                'epoch': epoch,
+                'model_config': {
+                    'latent_dim': self.latent_dim,
+                    'image_size': self.image_size,
+                },
+                'encoder_state_dict': self.encoder.state_dict(),
+                'generator_state_dict': self.generator.state_dict(),
+                'discriminator_state_dict': self.discriminator.state_dict(),
+                'optimizer_g_state_dict': self.opt_g.state_dict(),
+                'optimizer_d_state_dict': self.opt_d.state_dict(),
+                'scaler_state_dict': self.scaler.state_dict(),
+                'losses': losses,
+                'timestamp': datetime.now().isoformat(),
+                'metadata': metadata or {}
+            }
+            
+            torch.save(checkpoint, checkpoint_path)
+            print(f"Checkpoint saved to {checkpoint_path}")
+        
+    def load_checkpoint(self, checkpoint_path, load_optimizers=True):
+        """Load complete model checkpoint"""
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        
+        # Load model states
+        self.encoder.load_state_dict(checkpoint['encoder_state_dict'])
+        self.generator.load_state_dict(checkpoint['generator_state_dict'])
+        self.discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
+        
+        # Load optimizer states (optional)
+        if load_optimizers and 'optimizer_g_state_dict' in checkpoint:
+            self.opt_g.load_state_dict(checkpoint['optimizer_g_state_dict'])
+            self.opt_d.load_state_dict(checkpoint['optimizer_d_state_dict'])
+            
+        if 'scaler_state_dict' in checkpoint:
+            self.scaler.load_state_dict(checkpoint['scaler_state_dict'])
+        
+        epoch = checkpoint.get('epoch', 0)
+        losses = checkpoint.get('losses', {})
+        metadata = checkpoint.get('metadata', {})
+        
+        print(f"Checkpoint loaded from {checkpoint_path}, epoch {epoch}")
+        return epoch, losses, metadata
+
+    def save_models_only(self, save_dir, epoch=None):
+        """Save only the trained models (for inference)"""
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Save individual models
+        torch.save(self.encoder.state_dict(), os.path.join(save_dir, 'encoder.pth'))
+        torch.save(self.generator.state_dict(), os.path.join(save_dir, 'generator.pth'))
+        torch.save(self.discriminator.state_dict(), os.path.join(save_dir, 'discriminator.pth'))
+        
+        # Save config
+        config = {
+            'latent_dim': self.latent_dim,
+            'image_size': self.image_size,
+            'epoch': epoch,
+            'timestamp': datetime.now().isoformat()
+        }
+        torch.save(config, os.path.join(save_dir, 'config.pth'))
+        
+        print(f"Models saved to {save_dir}")
+
+    def load_models_only(self, save_dir):
+        """Load only the trained models (for inference)"""
+        # Load config
+        config_path = os.path.join(save_dir, 'config.pth')
+        if os.path.exists(config_path):
+            config = torch.load(config_path, map_location=self.device)
+            print(f"Loaded config from epoch {config.get('epoch', 'unknown')}")
+        
+        # Load models
+        self.encoder.load_state_dict(torch.load(os.path.join(save_dir, 'encoder.pth'), map_location=self.device))
+        self.generator.load_state_dict(torch.load(os.path.join(save_dir, 'generator.pth'), map_location=self.device))
+        self.discriminator.load_state_dict(torch.load(os.path.join(save_dir, 'discriminator.pth'), map_location=self.device))
+        
+        print(f"Models loaded from {save_dir}")
+
 
 
 class BeautyDatasetAugmenter:
@@ -378,12 +531,60 @@ class BeautyDatasetAugmenter:
         
         return augmented_images, augmented_scores
 
+
+def load_pretrained_beauty_gan(model_dir, device='cuda'):
+    """Load a pretrained BeautyGAN from saved models"""
+    config_path = os.path.join(model_dir, 'config.pth')
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config not found: {config_path}")
+    
+    config = torch.load(config_path, map_location=device)
+    
+    # Create GAN with saved config
+    gan = BeautyGAN(
+        latent_dim=config['latent_dim'],
+        image_size=config['image_size'],
+        device=device
+    )
+    
+    # Load the models
+    gan.load_models_only(model_dir)
+    
+    return gan
+
+def resume_training(checkpoint_path, dataloader, remaining_epochs, device='cuda'):
+    """Resume training from a checkpoint"""
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    
+    # Load checkpoint to get config
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    config = checkpoint['model_config']
+    
+    # Create GAN
+    gan = BeautyGAN(
+        latent_dim=config['latent_dim'],
+        image_size=config['image_size'],
+        device=device
+    )
+    
+    # Load checkpoint
+    start_epoch, losses, metadata = gan.load_checkpoint(checkpoint_path)
+    
+    print(f"Resuming training from epoch {start_epoch}")
+    print(f"Last losses: {losses}")
+    
+    gan.train(dataloader, epochs=remaining_epochs)
+    
+    return gan
+
+
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     image_size = 256
     latent_dim = 512
-    batch_size = 160
-    epochs = 200
+    batch_size = 64
+    epochs = 100
     
     transform = transforms.Compose([
         transforms.Resize((image_size, image_size)),
@@ -404,10 +605,11 @@ def main():
     data_me_test = data_processor.get_items_mebeauty("res/data_mebeauty/scores/test_cropped_scores.csv")
     data_thispersondoesnotexist = data_processor.get_items_thispersondoesnotexist("res/data_thispersondoesnotexist", fraction=0.4)
     data_celeba = data_processor.get_items_celeba(fraction=1.)
+    # data_celeba = data_celeba[:160]
     
     # Start with smaller dataset for testing
     data = data_celeba + data_thispersondoesnotexist #data_me_train + data_me_test
-
+    # data = data[1000]
     print(f"dataset size: {len(data)}")
     
     dataset = GANDataset(data, transform=transform)
@@ -431,5 +633,13 @@ def main():
     print(f"Generated {len(interpolated_faces)} interpolated faces")
     print(f"Score range: {min(interpolated_scores):.3f} - {max(interpolated_scores):.3f}")
 
+
+    # load the model
+    gan: BeautyGAN = load_pretrained_beauty_gan("checkpoints/models_only", device=device)
+    
+    gan.use_perceptual_loss = True
+    print("Pretrained GAN loaded successfully! now training on ")
+    gan.train(dataloader, epochs=10, save_every=10, checkpoint_dir="checkpoints")
+    
 if __name__ == "__main__":
     main()

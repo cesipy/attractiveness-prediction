@@ -9,3 +9,5 @@ res/test
 logs/*.txt
 res/data_*
 venv*
+gan_samples
+checkpoints
