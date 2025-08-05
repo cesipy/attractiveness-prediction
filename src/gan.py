@@ -13,12 +13,16 @@ import os
 from tqdm import tqdm
 
 from datetime import datetime
+import random
 
 from config import *
 import data_processor
 from datasets import CustomDataset, GANDataset
+from logger import Logger
 
-LEARNING_RATE_G = 5e-5  
+logger = Logger()
+
+LEARNING_RATE_G = 4e-5  
 LEARNING_RATE_D = 2.3e-5  
 
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -31,7 +35,8 @@ torch.backends.cudnn.enabled = True
 class PerceptualLoss(nn.Module):
     def __init__(self):
         super().__init__()
-        # Use VGG19 up to conv4_4 (good balance of features vs speed)
+        # simply compares loss of extracted features of pretrained model 
+        # really 
         vgg = torchvision.models.vgg19(weights='IMAGENET1K_V1').features[:25]
         self.vgg = vgg.eval()
         self.vgg = self.vgg.to('cuda' if torch.cuda.is_available() else 'cpu')
@@ -41,11 +46,12 @@ class PerceptualLoss(nn.Module):
     
     def forward(self, input, target):
         # VGG expects [0,1] normalized with ImageNet stats
-        # Your images are [-1,1], so convert:
+        # images are [-1,1], so convert:
         input_norm = (input + 1) / 2  # [-1,1] -> [0,1]
         target_norm = (target + 1) / 2
         
-        # Apply ImageNet normalization
+        # image net norms
+        # https://stackoverflow.com/questions/58151507/why-pytorch-officially-use-mean-0-485-0-456-0-406-and-std-0-229-0-224-0-2
         mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(input.device)
         std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(input.device)
         
@@ -55,6 +61,7 @@ class PerceptualLoss(nn.Module):
         input_features = self.vgg(input_norm)
         target_features = self.vgg(target_norm)
         return F.mse_loss(input_features, target_features)
+
 
 class StyleGANEncoder(nn.Module):
     def __init__(self, latent_dim=512, image_size=256):
@@ -199,14 +206,26 @@ class BeautyGAN:
     def decode(self, latents):
         return self.generator(latents)
     
+    def _get_smooth_labels(self, batch_size, real=True):
+        if real:
+            # Real labels: random between 0.8-1.0 (mostly confident, but not perfect)
+            return torch.rand(batch_size, 1, device=self.device) * 0.2 + 0.8
+        else:
+            # Fake labels: random between 0.0-0.2 (mostly fake, but not absolutely certain)
+            return torch.rand(batch_size, 1, device=self.device) * 0.2
+    
     def train_step(self, real_images, batch_idx):
         real_images = real_images.to(memory_format=torch.channels_last)
         batch_size = real_images.size(0)
         
 
         with torch.cuda.amp.autocast():
-            real_labels = torch.ones(batch_size, 1).to(self.device)
-            fake_labels = torch.zeros(batch_size, 1).to(self.device)
+            # real_labels = torch.ones(batch_size, 1).to(self.device) 
+            # fake_labels = torch.zeros(batch_size, 1).to(self.device)
+            
+            # smoothing labes to get more stable updates.
+            real_labels = self._get_smooth_labels(batch_size, real=True)
+            fake_labels = self._get_smooth_labels(batch_size, real=False)
             
             self.opt_d.zero_grad()
             
@@ -242,7 +261,7 @@ class BeautyGAN:
                 g_perceptual_loss = self.perceptual_loss(fake_images, real_images)
             
                 # reconstruction + small adversarial + conceptual
-                g_loss = 0.1 * g_adv_loss + 1.0 * g_recon_loss + 0.01 * g_perceptual_loss    
+                g_loss = 0.1 * g_adv_loss + 1.0 * g_recon_loss + 0.04 * g_perceptual_loss    
             else: 
                 g_loss = 0.1 * g_adv_loss + 1.0 * g_recon_loss
         
@@ -273,6 +292,8 @@ class BeautyGAN:
         
         for epoch in range(epochs):
             epoch_losses = {'g_loss': 0, 'd_loss': 0, 'g_adv_loss': 0, 'g_recon_loss': 0}
+            if self.use_perceptual_loss:
+                epoch_losses['g_perceptual_loss'] = 0
             
             for batch_idx, (images, _) in enumerate(tqdm(dataloader, desc=f'Epoch {epoch+1}/{epochs}')):
                 images = images.to(self.device)
@@ -286,16 +307,21 @@ class BeautyGAN:
                 epoch_losses[key] /= len(dataloader)
                 
             if self.use_perceptual_loss:
-                print(f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
+                info_str = (f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
                     f"D_loss: {epoch_losses['d_loss']:.4f}, "
                     f"Recon_loss: {epoch_losses['g_recon_loss']:.4f}, "
-                    f"Perceptual_loss: {epoch_losses['g_perceptual_loss']:.4f}")
+                    f"Perceptual_loss: {epoch_losses['g_perceptual_loss']:.4f}"
+                )
             else:
-                print(f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
+                info_str = (
+                    f"Epoch {epoch+1}: G_loss: {epoch_losses['g_loss']:.4f}, "
                     f"D_loss: {epoch_losses['d_loss']:.4f}, "
-                    f"Recon_loss: {epoch_losses['g_recon_loss']:.4f}")
+                    f"Recon_loss: {epoch_losses['g_recon_loss']:.4f}"
+                )
+            print(info_str)
+            logger.info(info_str)
             
-            if epoch % 5 == 0:
+            if epoch % 3 == 0:
                 self.save_sample_images(dataloader, epoch+1)
                 
             if (epoch + 1) % save_every == 0:
@@ -439,6 +465,7 @@ class BeautyGAN:
         metadata = checkpoint.get('metadata', {})
         
         print(f"Checkpoint loaded from {checkpoint_path}, epoch {epoch}")
+        logger.info(f"Checkpoint loaded from {checkpoint_path}, epoch {epoch}")
         return epoch, losses, metadata
 
     def save_models_only(self, save_dir, epoch=None):
@@ -460,6 +487,7 @@ class BeautyGAN:
         torch.save(config, os.path.join(save_dir, 'config.pth'))
         
         print(f"Models saved to {save_dir}")
+        logger.info(f"Models saved to {save_dir}")
 
     def load_models_only(self, save_dir):
         """Load only the trained models (for inference)"""
@@ -468,6 +496,7 @@ class BeautyGAN:
         if os.path.exists(config_path):
             config = torch.load(config_path, map_location=self.device)
             print(f"Loaded config from epoch {config.get('epoch', 'unknown')}")
+            logger.info(f"Loaded config from epoch {config.get('epoch', 'unknown')}")
         
         # Load models
         self.encoder.load_state_dict(torch.load(os.path.join(save_dir, 'encoder.pth'), map_location=self.device))
@@ -475,6 +504,7 @@ class BeautyGAN:
         self.discriminator.load_state_dict(torch.load(os.path.join(save_dir, 'discriminator.pth'), map_location=self.device))
         
         print(f"Models loaded from {save_dir}")
+        logger.info(f"Models loaded from {save_dir}")
 
 
 
@@ -605,12 +635,14 @@ def main():
     data_me_test = data_processor.get_items_mebeauty("res/data_mebeauty/scores/test_cropped_scores.csv")
     data_thispersondoesnotexist = data_processor.get_items_thispersondoesnotexist("res/data_thispersondoesnotexist", fraction=0.4)
     data_celeba = data_processor.get_items_celeba(fraction=1.)
-    # data_celeba = data_celeba[:160]
+    data_celeba = data_celeba[:10000]
     
     # Start with smaller dataset for testing
-    data = data_celeba + data_thispersondoesnotexist #data_me_train + data_me_test
-    # data = data[1000]
+    #data = data_celeba + data_thispersondoesnotexist #data_me_train + data_me_test
+    # data = data[4000]
+    data = data_thispersondoesnotexist + data_me_train + data_me_test + data_celeba
     print(f"dataset size: {len(data)}")
+    logger.info(f"dataset size: {len(data)}")
     
     dataset = GANDataset(data, transform=transform)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, pin_memory=True,
@@ -619,19 +651,19 @@ def main():
     gan = BeautyGAN(latent_dim=latent_dim, image_size=image_size, device=device)
     
 
-    print("Training GAN...")
-    gan.train(dataloader, epochs=epochs)
-    print("GAN training complete!")
+    # print("Training GAN...")
+    # gan.train(dataloader, epochs=epochs)
+    # print("GAN training complete!")
 
-    sample1 = dataset[0]
-    sample2 = dataset[1]
+    # sample1 = dataset[0]
+    # sample2 = dataset[1]
     
-    interpolated_faces, interpolated_scores = gan.interpolate_beauty_scores(
-        sample1[0], sample2[0], sample1[1].item(), sample2[1].item(), num_interpolations=5
-    )
+    # interpolated_faces, interpolated_scores = gan.interpolate_beauty_scores(
+    #     sample1[0], sample2[0], sample1[1].item(), sample2[1].item(), num_interpolations=5
+    # )
     
-    print(f"Generated {len(interpolated_faces)} interpolated faces")
-    print(f"Score range: {min(interpolated_scores):.3f} - {max(interpolated_scores):.3f}")
+    # print(f"Generated {len(interpolated_faces)} interpolated faces")
+    # print(f"Score range: {min(interpolated_scores):.3f} - {max(interpolated_scores):.3f}")
 
 
     # load the model
@@ -639,7 +671,7 @@ def main():
     
     gan.use_perceptual_loss = True
     print("Pretrained GAN loaded successfully! now training on ")
-    gan.train(dataloader, epochs=10, save_every=10, checkpoint_dir="checkpoints")
+    gan.train(dataloader, epochs=epochs, save_every=5, checkpoint_dir="checkpoints")
     
 if __name__ == "__main__":
     main()
