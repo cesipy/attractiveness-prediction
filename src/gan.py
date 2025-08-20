@@ -617,8 +617,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     image_size = 256
     latent_dim = 1024
-    # batch_size = 296      # without perceptual loss
-    batch_size = 64
+    batch_size = 256      # without perceptual loss
+    # batch_size = 64
     epochs = 100
 
     transform = transforms.Compose([
@@ -633,19 +633,18 @@ def main():
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
 
-    data_scut = data_processor.get_items_scut("res/data_scut", filter=DATASET_FILTER)
-    avg_data = data_processor.get_averages(data=data_scut)
+    # data_scut = data_processor.get_items_scut("res/data_scut", filter=DATASET_FILTER)
+    # avg_data = data_processor.get_averages(data=data_scut)
 
-    data_me_train = data_processor.get_items_mebeauty("res/data_mebeauty/scores/train_cropped_scores.csv")
-    data_me_test = data_processor.get_items_mebeauty("res/data_mebeauty/scores/test_cropped_scores.csv")
-    data_thispersondoesnotexist = data_processor.get_items_thispersondoesnotexist("res/data_thispersondoesnotexist", fraction=0.9)
-    data_celeba = data_processor.get_items_celeba(fraction=1.)
-    data_celeba = data_celeba[:70000]
+    # data_me_train = data_processor.get_items_mebeauty("res/data_mebeauty/scores/train_cropped_scores.csv")
+    # data_me_test = data_processor.get_items_mebeauty("res/data_mebeauty/scores/test_cropped_scores.csv")
+    # data_thispersondoesnotexist = data_processor.get_items_thispersondoesnotexist("res/data_thispersondoesnotexist", fraction=0.9)
+    # data_celeba = data_processor.get_items_celeba(fraction=1.)
+    # data_celeba = data_celeba[:70000]
 
-    # Start with smaller dataset for testing
-    #data = data_celeba + data_thispersondoesnotexist #data_me_train + data_me_test
-    # data = data[4000]
-    data = data_thispersondoesnotexist + data_me_train + data_me_test + data_celeba
+
+    # data = data_thispersondoesnotexist + data_me_train + data_me_test + data_celeba
+    data = data_processor.get_items("res/gan/aligned_images")
     random.shuffle(data)
     print(f"dataset size: {len(data)}")
     logger.info(f"dataset size: {len(data)}")
@@ -654,16 +653,16 @@ def main():
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, pin_memory=True,
                             persistent_workers=False, prefetch_factor=4)
 
-    # gan = BeautyGAN(
-    #     latent_dim=latent_dim,
-    #     image_size=image_size,
-    #     device=device,
-    #     use_perceptual_loss=True
-    # )
+    gan = BeautyGAN(
+        latent_dim=latent_dim,
+        image_size=image_size,
+        device=device,
+        # use_perceptual_loss=True
+    )
 
-    # print("Training GAN...")
-    # gan.train(dataloader, epochs=epochs)
-    # print("GAN training complete!")
+    print("Training GAN...")
+    gan.train(dataloader, epochs=epochs)
+    print("GAN training complete!")
 
     # sample1 = dataset[0]
     # sample2 = dataset[1]
@@ -685,12 +684,12 @@ def main():
     #     param_group['lr'] = LEARNING_RATE_D
 
 
-    gan = resume_training(
-        checkpoint_path="checkpoints/checkpoint_epoch_100.pth",
-        dataloader=dataloader,
-        remaining_epochs=epochs,
-        device=device
-    )
+    # gan = resume_training(
+    #     checkpoint_path="checkpoints/checkpoint_epoch_100.pth",
+    #     dataloader=dataloader,
+    #     remaining_epochs=epochs,
+    #     device=device
+    # )
 
     gan.use_perceptual_loss = True
     print("Pretrained GAN loaded successfully! now training on ")

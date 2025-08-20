@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 
@@ -21,13 +23,10 @@ detector  = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(model_path)
 
 TARGET_LANDMARKS = {
-    'left_eye': (70, 80),    # Move eyes higher and wider apart
-    'right_eye': (186, 80),  # This gives more room for forehead/chin
-    'mouth': (128, 160)      # Move mouth up to leave room for chin
+    'left_eye': (85, 110),
+    'right_eye': (171, 110),
+    'mouth': (128, 180)
 }
-
-
-
 
 def get_facial_landmarks( image: np.ndarray):
 
@@ -37,7 +36,7 @@ def get_facial_landmarks( image: np.ndarray):
     if len(faces) == 0:
         return None
 
-    print(f"len(faces): {len(faces)}")
+    # print(f"len(faces): {len(faces)}")
 
     shape = predictor(gray, faces[0])
     landmarks = np.array([[p.x, p.y] for p in shape.parts()])
@@ -87,21 +86,51 @@ def normalize_face(image: np.ndarray):
     return normalized
 
 
+def process_image(path: str, output_dir: str):
+    img = cv.imread(path)
+    if img is None:
+        print(f"Could not read image: {path}")
+        return False
+
+    norm_img = normalize_face(img)
+    if norm_img is None:
+        print(f"Could not detect face in: {path}")
+        return False
+
+    image_name = os.path.basename(path)  # More robust than split("/")[-1]
+    output_name = os.path.join(output_dir, image_name)  # Better path joining
+    os.makedirs(output_dir, exist_ok=True)
+
+    cv.imwrite(output_name, norm_img)
+    return True
+
+
 
 if __name__ == "__main__":
-    path = "res/data_celeba/050027.jpg"
-    img = cv.imread(path)
-    landmarks = get_facial_landmarks(img)
-    print(landmarks)
 
-    keypoints = get_key_points(landmarks)
-    print(keypoints)
+    dir_path = "res/data_celeba"
 
-    normalized_img = normalize_face(img)
-    cv.imwrite("050027_normalized.jpg", normalized_img)
+    for file_name in os.listdir(dir_path):
+        if file_name.endswith('.jpg'):
+            img_path = os.path.join(dir_path, file_name)
+            process_image(img_path, "res/gan/aligned_images")
 
-    norm_landmarks = get_facial_landmarks(normalized_img)
-    norm_keypoints = get_key_points(norm_landmarks)
+    # path = "res/data_celeba/050027.jpg"
+    # path=
+    # img = cv.imread(path)
+    # landmarks = get_facial_landmarks(img)
+    # print(landmarks)
 
-    print(norm_keypoints)
+    # keypoints = get_key_points(landmarks)
+    # print(keypoints)
+
+    # normalized_img = normalize_face(img)
+    # cv.imwrite("050027_normalized.jpg", normalized_img)
+
+    # norm_landmarks = get_facial_landmarks(normalized_img)
+    # norm_keypoints = get_key_points(norm_landmarks)
+
+    # print(norm_keypoints)
+
+    process_image("res/data_celeba/050027.jpg", "res/gan/aligned_images")
 
