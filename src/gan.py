@@ -654,15 +654,15 @@ def main():
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, pin_memory=True,
                             persistent_workers=False, prefetch_factor=4)
 
-    gan = BeautyGAN(
-        latent_dim=latent_dim,
-        image_size=image_size,
-        device=device,
-        use_perceptual_loss=True
-    )
+    # gan = BeautyGAN(
+    #     latent_dim=latent_dim,
+    #     image_size=image_size,
+    #     device=device,
+    #     use_perceptual_loss=True
+    # )
 
     # print("Training GAN...")
-    gan.train(dataloader, epochs=epochs)
+    # gan.train(dataloader, epochs=epochs)
     # print("GAN training complete!")
 
     # sample1 = dataset[0]
@@ -685,16 +685,16 @@ def main():
     #     param_group['lr'] = LEARNING_RATE_D
 
 
-    # gan = resume_training(
-    #     checkpoint_path="checkpoints/checkpoint_epoch_020.pth",
-    #     dataloader=dataloader,
-    #     remaining_epochs=epochs,
-    #     device=device
-    # )
+    gan = resume_training(
+        checkpoint_path="checkpoints/checkpoint_epoch_100.pth",
+        dataloader=dataloader,
+        remaining_epochs=epochs,
+        device=device
+    )
 
-    # gan.use_perceptual_loss = True
-    # print("Pretrained GAN loaded successfully! now training on ")
-    # gan.train(dataloader, epochs=epochs, save_every=5, checkpoint_dir="checkpoints")
+    gan.use_perceptual_loss = True
+    print("Pretrained GAN loaded successfully! now training on ")
+    gan.train(dataloader, epochs=epochs, save_every=5, checkpoint_dir="checkpoints")
 
 if __name__ == "__main__":
     main()
