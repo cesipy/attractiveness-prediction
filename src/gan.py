@@ -23,7 +23,7 @@ from logger import Logger
 logger = Logger()
 
 LEARNING_RATE_G = 4e-5
-LEARNING_RATE_D = 5e-5
+LEARNING_RATE_D = 8e-5
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -61,6 +61,8 @@ class PerceptualLoss(nn.Module):
         input_features = self.vgg(input_norm)
         target_features = self.vgg(target_norm)
         return F.mse_loss(input_features, target_features)
+
+# of course they like boats! thats completely sure!
 
 class StyleGANEncoder(nn.Module):
    def __init__(self, latent_dim=1024, image_size=256):
@@ -617,8 +619,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     image_size = 256
     latent_dim = 1024
-    batch_size = 256      # without perceptual loss
-    # batch_size = 64
+    batch_size = 320      # without perceptual loss
+    # batch_size = 72
     epochs = 100
 
     transform = transforms.Compose([
@@ -653,16 +655,16 @@ def main():
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, pin_memory=True,
                             persistent_workers=False, prefetch_factor=4)
 
-    gan = BeautyGAN(
-        latent_dim=latent_dim,
-        image_size=image_size,
-        device=device,
-        # use_perceptual_loss=True
-    )
+    # gan = BeautyGAN(
+    #     latent_dim=latent_dim,
+    #     image_size=image_size,
+    #     device=device,
+    #     use_perceptual_loss=True
+    # )
 
-    print("Training GAN...")
-    gan.train(dataloader, epochs=epochs)
-    print("GAN training complete!")
+    # print("Training GAN...")
+    # gan.train(dataloader, epochs=epochs)
+    # print("GAN training complete!")
 
     # sample1 = dataset[0]
     # sample2 = dataset[1]
@@ -676,22 +678,22 @@ def main():
 
 
     # load the model
-    # gan: BeautyGAN = load_pretrained_beauty_gan("checkpoints/models_only", device=device)
+    gan: BeautyGAN = load_pretrained_beauty_gan("checkpoints/models_only", device=device)
 
-    # for param_group in gan.opt_g.param_groups:
-    #     param_group['lr'] = LEARNING_RATE_G
-    # for param_group in gan.opt_d.param_groups:
-    #     param_group['lr'] = LEARNING_RATE_D
+    for param_group in gan.opt_g.param_groups:
+        param_group['lr'] = LEARNING_RATE_G
+    for param_group in gan.opt_d.param_groups:
+        param_group['lr'] = LEARNING_RATE_D
 
 
     # gan = resume_training(
-    #     checkpoint_path="checkpoints/checkpoint_epoch_100.pth",
+    #     checkpoint_path="checkpoints/checkpoint_epoch_065.pth",
     #     dataloader=dataloader,
     #     remaining_epochs=epochs,
     #     device=device
     # )
 
-    gan.use_perceptual_loss = True
+    # gan.use_perceptual_loss = False
     print("Pretrained GAN loaded successfully! now training on ")
     gan.train(dataloader, epochs=epochs, save_every=5, checkpoint_dir="checkpoints")
 

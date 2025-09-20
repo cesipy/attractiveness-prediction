@@ -108,7 +108,8 @@ def process_image(path: str, output_dir: str):
 
 if __name__ == "__main__":
 
-    dir_path = "res/data_celeba"
+    # dir_path = "res/data_celeba"
+    dir_path = "res/data_thispersondoesnotexist"
 
     for file_name in os.listdir(dir_path):
         if file_name.endswith('.jpg'):
