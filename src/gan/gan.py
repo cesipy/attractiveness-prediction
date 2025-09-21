@@ -1,10 +1,8 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
+import torch;import torch.nn as nn;import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
-import torchvision
+
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -20,6 +18,10 @@ import data_processor
 from datasets import CustomDataset, GANDataset
 from logger import Logger
 
+from .encoder import Encoder
+from .generator import Generator
+from .percept import PerceptualLoss
+
 logger = Logger()
 
 LEARNING_RATE_G = 4e-5
@@ -31,107 +33,6 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.enabled = True
 
-
-class PerceptualLoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # simply compares loss of extracted features of pretrained model
-        # really
-        vgg = torchvision.models.vgg19(weights='IMAGENET1K_V1').features[:30]
-        self.vgg = vgg.eval()
-        self.vgg = self.vgg.to('cuda' if torch.cuda.is_available() else 'cpu')
-        self.vgg = torch.compile(self.vgg)
-        for p in self.vgg.parameters():
-            p.requires_grad = False
-
-    def forward(self, input, target):
-        # VGG expects [0,1] normalized with ImageNet stats
-        # images are [-1,1], so convert:
-        input_norm = (input + 1) / 2  # [-1,1] -> [0,1]
-        target_norm = (target + 1) / 2
-
-        # image net norms
-        # https://stackoverflow.com/questions/58151507/why-pytorch-officially-use-mean-0-485-0-456-0-406-and-std-0-229-0-224-0-2
-        mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(input.device)
-        std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(input.device)
-
-        input_norm = (input_norm - mean) / std
-        target_norm = (target_norm - mean) / std
-
-        input_features = self.vgg(input_norm)
-        target_features = self.vgg(target_norm)
-        return F.mse_loss(input_features, target_features)
-
-# of course they like boats! thats completely sure!
-
-class StyleGANEncoder(nn.Module):
-   def __init__(self, latent_dim=1024, image_size=256):
-       super().__init__()
-       self.latent_dim = latent_dim
-
-       self.encoder = nn.Sequential(
-           # Input: 3 x 256 x 256
-           nn.Conv2d(3, 64, 4, 2, 1),  # 64 x 128 x 128
-           nn.LeakyReLU(0.2),
-           nn.Conv2d(64, 128, 4, 2, 1),  # 128 x 64 x 64
-           nn.BatchNorm2d(128),
-           nn.LeakyReLU(0.2),
-           nn.Conv2d(128, 256, 4, 2, 1),  # 256 x 32 x 32
-           nn.BatchNorm2d(256),
-           nn.LeakyReLU(0.2),
-           nn.Conv2d(256, 512, 4, 2, 1),  # 512 x 16 x 16
-           nn.BatchNorm2d(512),
-           nn.LeakyReLU(0.2),
-           nn.Conv2d(512, 512, 4, 2, 1),  # 512 x 8 x 8
-           nn.BatchNorm2d(512),
-           nn.LeakyReLU(0.2),
-           nn.Conv2d(512, 512, 4, 2, 1),  # 512 x 4 x 4
-           nn.BatchNorm2d(512),
-           nn.LeakyReLU(0.2),
-           nn.AdaptiveAvgPool2d(4),
-           nn.Flatten(),
-           nn.Linear(512 * 16, latent_dim)
-       )
-
-   def forward(self, x):
-       return self.encoder(x)
-
-class StyleGANGenerator(nn.Module):
-    """Simple generator to decode from latent space"""
-    def __init__(self, latent_dim=1024, image_size=256):
-        super().__init__()
-        self.latent_dim = latent_dim
-
-        self.initial = nn.Sequential(
-            nn.Linear(latent_dim, 512 * 4 * 4),
-            nn.ReLU(),
-        )
-
-        self.decoder = nn.Sequential(
-
-            nn.ConvTranspose2d(512, 512, 4, 2, 1),  # 512 x 8 x 8
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.ConvTranspose2d(512, 512, 4, 2, 1),  # 512 x 16 x 16
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.ConvTranspose2d(512, 256, 4, 2, 1),  # 256 x 32 x 32
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.ConvTranspose2d(256, 128, 4, 2, 1),  # 128 x 64 x 64
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, 4, 2, 1),  # 64 x 128 x 128
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, 3, 4, 2, 1),  # 3 x 256 x 256
-            nn.Tanh()
-        )
-
-    def forward(self, z):
-        x = self.initial(z)
-        x = x.view(-1, 512, 4, 4)
-        return self.decoder(x)
 
 class BeautyGAN:
 
@@ -148,8 +49,8 @@ class BeautyGAN:
         self.latent_dim = latent_dim
         self.image_size = image_size
 
-        self.encoder = StyleGANEncoder(latent_dim, image_size).to(device)
-        self.generator = StyleGANGenerator(latent_dim, image_size).to(device)
+        self.encoder = Encoder(latent_dim, image_size).to(device)
+        self.generator = Generator(latent_dim, image_size).to(device)
         self.discriminator = self._build_discriminator().to(device)
 
         self.encoder = torch.compile(self.encoder)
@@ -201,11 +102,7 @@ class BeautyGAN:
         grad_penalty = (grad_real.reshape(grad_real.shape[0], -1).norm(dim=1) ** 2).mean()
         return grad_penalty
 
-    def encode(self, images):
-        return self.encoder(images)
 
-    def decode(self, latents):
-        return self.generator(latents)
 
     def _get_smooth_labels(self, batch_size, real=True):
         if real:
@@ -232,8 +129,8 @@ class BeautyGAN:
             d_real_loss = self.adversarial_loss(real_pred, real_labels)
 
             # fake images
-            latents = self.encode(real_images)
-            fake_images = self.decode(latents)
+            latents, skip_connections = self.encoder(real_images)
+            fake_images = self.generator(latents, skip_connections)
             fake_pred = self.discriminator(fake_images.detach())
             d_fake_loss = self.adversarial_loss(fake_pred, fake_labels)
 
@@ -251,8 +148,8 @@ class BeautyGAN:
         for _ in range(2):  # Added this loop
             with torch.cuda.amp.autocast():
                 self.opt_g.zero_grad()
-                latents = self.encode(real_images)  # Re-encode for second iteration
-                fake_images = self.decode(latents)
+                latents, skip_connections  = self.encoder(real_images)  # Re-encode for second iteration
+                fake_images = self.generator(latents, skip_connections)
                 fake_pred = self.discriminator(fake_images)
                 g_adv_loss = self.adversarial_loss(fake_pred, real_labels)
                 g_recon_loss = self.reconstruction_loss(fake_images, real_images)
@@ -266,6 +163,36 @@ class BeautyGAN:
             self.scaler.step(self.opt_g)
             self.scaler.update()
 
+        self.g_losses_buffer.append(g_loss.item())
+        self.d_losses_buffer.append(d_loss.item())
+        self.g_adv_losses_buffer.append(g_adv_loss.item())
+        self.g_recon_losses_buffer.append(g_recon_loss.item())
+        if self.use_perceptual_loss:
+            self.perceptual_loss_buffer.append(g_perceptual_loss.item())
+
+
+        if (batch_idx +1) % 10 == 0:
+            avg_g_loss = sum(self.g_losses_buffer) / len(self.g_losses_buffer)
+            avg_d_loss = sum(self.d_losses_buffer) / len(self.d_losses_buffer)
+            avg_g_adv_loss = sum(self.g_adv_losses_buffer) / len(self.g_adv_losses_buffer)
+            avg_g_recon_loss = sum(self.g_recon_losses_buffer) / len(self.g_recon_losses_buffer)
+            if self.use_perceptual_loss:
+                avg_g_perceptual_loss = sum(self.perceptual_loss_buffer) / len(self.perceptual_loss_buffer)
+
+
+            self.g_losses_buffer = []
+            self.d_losses_buffer = []
+            self.g_adv_losses_buffer = []
+            self.g_recon_losses_buffer = []
+            if self.use_perceptual_loss:
+                self.perceptual_loss_buffer = []
+
+            self.g_losses.append(avg_g_loss)
+            self.d_losses.append(avg_d_loss)
+            self.g_adv_losses.append(avg_g_adv_loss)
+            self.g_recon_losses.append(avg_g_recon_loss)
+            if self.use_perceptual_loss:
+                self.g_perceptual_losses.append(avg_g_perceptual_loss)
 
 
         return {
@@ -288,6 +215,19 @@ class BeautyGAN:
         self.generator.train()
         self.discriminator.train()
 
+        self.g_losses = []
+        self.g_losses_buffer = []
+        self.d_losses = []
+        self.d_losses_buffer = []
+        self.g_adv_losses = []
+        self.g_adv_losses_buffer = []
+        self.g_recon_losses = []
+        self.g_recon_losses_buffer = []
+        if self.use_perceptual_loss:
+            self.g_perceptual_losses = []
+            self.perceptual_loss_buffer = []
+
+
         for epoch in range(epochs):
             epoch_losses = {'g_loss': 0, 'd_loss': 0, 'g_adv_loss': 0, 'g_recon_loss': 0}
             if self.use_perceptual_loss:
@@ -300,6 +240,9 @@ class BeautyGAN:
 
                 for key in epoch_losses:
                     epoch_losses[key] += losses[key]
+
+
+
 
             for key in epoch_losses:
                 epoch_losses[key] /= len(dataloader)
@@ -327,7 +270,36 @@ class BeautyGAN:
                 self.save_checkpoint(checkpoint_path, epoch=epoch+1, losses=epoch_losses)
                 self.save_models_only(os.path.join(checkpoint_dir, "models_only"), epoch=epochs)
 
+            # save visualization of loss
+            plot_dir = "res/gan/plots"
+            os.makedirs(plot_dir, exist_ok=True)
+            self.plot_losses(save_dir=plot_dir)
+
         self.save_models_only(os.path.join(checkpoint_dir, "final_models"), epoch=epochs)
+
+    def plot_losses(self, save_dir="checkpoints"):
+        """Plot and save training losses"""
+        os.makedirs(save_dir, exist_ok=True)
+
+        plt.figure(figsize=(12, 8))
+
+        plt.plot(self.g_losses, label='Generator Loss', color='blue')
+        plt.plot(self.d_losses, label='Discriminator Loss', color='red')
+        plt.plot(self.g_recon_losses, label='Reconstruction Loss', color='green')
+        if self.use_perceptual_loss and hasattr(self, 'g_perceptual_losses'):
+            plt.plot(self.g_perceptual_losses, label='Perceptual Loss', color='orange')
+
+        plt.xlabel('Batch (x10)')
+        plt.ylabel('Loss')
+        plt.title('Training Losses')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+
+        plt.savefig(os.path.join(save_dir, 'training_losses.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"Loss plot saved to {save_dir}/training_losses.png")
+        logger.info(f"Loss plot saved to {save_dir}/training_losses.png")
 
 
     def interpolate_beauty_scores(self, face1, face2, score1, score2, num_interpolations=10):
@@ -343,8 +315,8 @@ class BeautyGAN:
             face1 = face1.to(self.device)
             face2 = face2.to(self.device)
 
-            latent1 = self.encode(face1)
-            latent2 = self.encode(face2)
+            latent1,skip_conns1 = self.encoder(face1)
+            latent2,skip_conns2 = self.encoder(face2)
 
             interpolated_faces = []
             interpolated_scores = []
@@ -353,7 +325,8 @@ class BeautyGAN:
 
             for alpha in alphas:
                 interpolated_latent = alpha * latent1 + (1 - alpha) * latent2
-                interpolated_face = self.decode(interpolated_latent)
+                interp_skips = [alpha * s1 + (1 - alpha) * s2 for s1, s2 in zip(skip_conns1, skip_conns2)]
+                interpolated_face = self.generator(interpolated_latent, interp_skips)
                 interpolated_score = alpha * score1 + (1 - alpha) * score2
 
                 interpolated_faces.append(interpolated_face.squeeze(0).cpu())
@@ -371,17 +344,18 @@ class BeautyGAN:
             real_batch = next(iter(dataloader))
             real_images = real_batch[0][:4].to(self.device)
 
-            latents = self.encode(real_images)
-            reconstructed = self.decode(latents)
+            latents,skip_conns= self.encoder(real_images)
+            reconstructed = self.generator(latents, skip_conns)
 
-            latent1 = self.encode(real_images[0:1])
-            latent2 = self.encode(real_images[1:2])
+            latent1,skip_conns1 = self.encoder(real_images[0:1])
+            latent2,skip_conns2 = self.encoder(real_images[1:2])
 
             interpolated_images = []
             alphas = [0.0, 0.25, 0.5, 0.75, 1.0]
             for alpha in alphas:
                 interp_latent = alpha * latent1 + (1 - alpha) * latent2
-                interp_image = self.decode(interp_latent)
+                interp_skips = [alpha * s1 + (1 - alpha) * s2 for s1, s2 in zip(skip_conns1, skip_conns2)]
+                interp_image = self.generator(interp_latent, interp_skips)
                 interpolated_images.append(interp_image)
 
             # Convert from [-1, 1] to [0, 1] for saving
@@ -445,12 +419,10 @@ class BeautyGAN:
 
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
 
-        # Load model states
+
         self.encoder.load_state_dict(checkpoint['encoder_state_dict'])
         self.generator.load_state_dict(checkpoint['generator_state_dict'])
         self.discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
-
-        # Load optimizer states (optional)
         if load_optimizers and 'optimizer_g_state_dict' in checkpoint:
             self.opt_g.load_state_dict(checkpoint['optimizer_g_state_dict'])
             self.opt_d.load_state_dict(checkpoint['optimizer_d_state_dict'])
@@ -470,12 +442,11 @@ class BeautyGAN:
         """Save only the trained models (for inference)"""
         os.makedirs(save_dir, exist_ok=True)
 
-        # Save individual models
         torch.save(self.encoder.state_dict(), os.path.join(save_dir, 'encoder.pth'))
         torch.save(self.generator.state_dict(), os.path.join(save_dir, 'generator.pth'))
         torch.save(self.discriminator.state_dict(), os.path.join(save_dir, 'discriminator.pth'))
 
-        # Save config
+
         config = {
             'latent_dim': self.latent_dim,
             'image_size': self.image_size,
@@ -489,14 +460,13 @@ class BeautyGAN:
 
     def load_models_only(self, save_dir):
         """Load only the trained models (for inference)"""
-        # Load config
+
         config_path = os.path.join(save_dir, 'config.pth')
         if os.path.exists(config_path):
             config = torch.load(config_path, map_location=self.device)
             print(f"Loaded config from epoch {config.get('epoch', 'unknown')}")
             logger.info(f"Loaded config from epoch {config.get('epoch', 'unknown')}")
 
-        # Load models
         self.encoder.load_state_dict(torch.load(os.path.join(save_dir, 'encoder.pth'), map_location=self.device))
         self.generator.load_state_dict(torch.load(os.path.join(save_dir, 'generator.pth'), map_location=self.device))
         self.discriminator.load_state_dict(torch.load(os.path.join(save_dir, 'discriminator.pth'), map_location=self.device))
@@ -619,7 +589,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     image_size = 256
     latent_dim = 1024
-    batch_size = 320      # without perceptual loss
+    batch_size = 80     # without perceptual loss
     # batch_size = 72
     epochs = 100
 
@@ -647,6 +617,8 @@ def main():
 
     # data = data_thispersondoesnotexist + data_me_train + data_me_test + data_celeba
     data = data_processor.get_items("res/gan/aligned_images")
+
+    data = data[:1000]
     random.shuffle(data)
     print(f"dataset size: {len(data)}")
     logger.info(f"dataset size: {len(data)}")
@@ -655,15 +627,15 @@ def main():
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=10, pin_memory=True,
                             persistent_workers=False, prefetch_factor=4)
 
-    # gan = BeautyGAN(
-    #     latent_dim=latent_dim,
-    #     image_size=image_size,
-    #     device=device,
-    #     use_perceptual_loss=True
-    # )
+    gan = BeautyGAN(
+        latent_dim=latent_dim,
+        image_size=image_size,
+        device=device,
+        use_perceptual_loss=True
+    )
 
     # print("Training GAN...")
-    # gan.train(dataloader, epochs=epochs)
+    gan.train(dataloader, epochs=epochs)
     # print("GAN training complete!")
 
     # sample1 = dataset[0]
